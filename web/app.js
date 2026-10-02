@@ -443,7 +443,11 @@ function histFmt(v){if(v==null||!Number.isFinite(+v))return"—";let n=+v;return
 async function loadHistorySelected(){
  if(!HISTORY_INDEX)return;let token=++HISTORY_TOKEN,id=$("#historySeries").value;if(!id)return;
  let meta=historyItems().find(x=>x.id===id),overlayId=$("#historyOverlay").value;
- let [data,overlay]=await Promise.all([fetchHistoryItem(id),overlayId?fetchHistoryItem(overlayId):Promise.resolve(null)]);if(token!==HISTORY_TOKEN||!data)return;
+ $("#historyTitle").textContent=meta?.label||id;$("#historyLatest").textContent="Loading…";$("#historyStats").innerHTML="";
+ renderHistoryRows([],meta||{});let canvas=$("#fullHistoryCanvas");canvas.getContext("2d").clearRect(0,0,canvas.width,canvas.height);
+ let [data,overlay]=await Promise.all([fetchHistoryItem(id),overlayId?fetchHistoryItem(overlayId):Promise.resolve(null)]);if(token!==HISTORY_TOKEN)return;
+ if(!data){$("#historyLatest").textContent="N/A";$("#historyMeta").textContent="History could not be loaded. Reselect the series to retry.";$("#historyCompareNote").textContent="No verified observations available for this series.";return}
+ $("#historyCompareNote").textContent=overlayId&&!overlay?"Overlay could not be loaded. The primary series remains available.":"";
  let hist=filterHistory(data.history||[],HISTORY_RANGE),oh=overlay?filterHistory(overlay.history||[],HISTORY_RANGE):[];
  $("#historyCategory").textContent=(meta.category||meta.kind||"SERIES").toUpperCase();$("#historyTitle").textContent=meta.label||id;
  $("#historyRangeLabel").textContent=HISTORY_RANGE;let last=hist[hist.length-1];

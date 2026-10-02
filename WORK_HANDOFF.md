@@ -1,55 +1,59 @@
-# RS Radar — 2026-10-02 resume
+# RS Radar — resumed 2026-10-02
 
 Repository: https://github.com/dnwl00004-droid/holic
+Live dashboard: https://dnwl00004-droid.github.io/holic/
 
-Restored the verified v14 archive from 2026-10-01. The repository previously
-contained only a README. Data remains genuine: 58 FRED series, eight EIA series,
-335,000 saved observations, and 444 official calendar events.
+GitHub Pages uses GitHub Actions. Deployment succeeded and the public dashboard
+was opened and verified after repository-owner authentication.
 
-## This change
+## Current changes
 
-- Split initial validation/Pages publishing from the long provider refresh.
-- Added a real Chromium check of all 49 routes at 1440px and 390px, plus
-  historical-series loading. CI preserves screenshots as `browser-evidence`.
-- Refresh continues on weekdays at 22:30 UTC, preserves last verified data,
-  and triggers publishing only after a successful refresh.
-- No paid API or OpenAI call is required by either default workflow.
-- Calendar countdowns and risk counts recalculate from the current Eastern
-  date/time. Released events leave the upcoming list; Today shows ET and KST.
+- Restored the verified v14 archive, including 58 FRED and eight EIA histories,
+  335,000 saved observations and 444 official calendar events.
+- Split validation/publishing from the long data refresh. The weekday refresh
+  runs at 22:30 UTC (07:30 KST the next day) and publishes only after validation.
+- Calendar countdowns use the current Eastern date and release time. Today and
+  Calendar show ET and KST, including the Korean date when it changes.
+- Full history stays available through 200-row pages, page jumps and CSV export
+  of every observation in the selected range. Chart comparisons align dates.
+- Failed history loads clear the previous value/chart instead of showing a
+  different series under a new title. Unverified history payloads are rejected.
+- Market/futures collection runs in a bounded child process (300 seconds).
+  Provider failures retain verified cached data and preserve separate macro
+  collection. Data Health reports source errors, durations and cache ages.
+- Derived futures spreads/ratios store their complete same-date history. Cached
+  inputs produce a stale result. Spot prices remain distinct from futures;
+  copper/gold quoted-price units are explicit.
+- Snapshot archives use the completed build timestamp. Multiple macro refreshes
+  with the same equity date preserve separate snapshots.
+- Refresh commits rebase on current main to preserve concurrent source edits.
 
-## Verified locally
+## Validation
 
-- Python: 31 tests passed.
-- JavaScript syntax and DOM contracts: passed, 49 routes in four scenarios.
-- Published data: 66 histories, 335,000 observations, no duplicate HTML IDs.
-- A fresh SPY request with yfinance 1.7.0 still returned a rate-limit error.
-  Stocks and unavailable futures therefore remain N/A.
-- Real Chromium in Actions: 49 routes at both desktop and mobile widths passed,
-  full DGS10 history loaded (16,171 rows), zero JavaScript errors, and no
-  page-wide overflow in History. Screenshots were inspected for Today, Rates
-  and History.
-- Initial deploy failed at Configure Pages because Pages has not been enabled.
+- 37 Python tests pass, including child timeout, failed-child restoration,
+  full derived histories, safe error reporting and separate archive timestamps.
+- JavaScript syntax and DOM contracts pass for 49 routes in four scenarios.
+- The data validator confirms 66 available histories and 335,000 observations,
+  with no duplicate HTML IDs or invalid history references.
+- Real Chromium Actions checks cover 49 routes on desktop and mobile, history
+  pagination, oldest/newest observations and complete CSV export. Screenshot
+  evidence is retained as the browser-evidence workflow artifact.
 
-## Deployment activation
+## Data limitations
 
-Repository Settings → Pages → Build and deployment → Source → GitHub Actions.
-Then run the `Validate and deploy dashboard` workflow. Until that setting is
-enabled and the deploy job passes, https://dnwl00004-droid.github.io/holic/
-is an intended address, not a confirmed working deployment.
+The dashboard is live with partial data. Yahoo equity/futures requests have not
+returned verified prices; stocks and all dependent rankings remain N/A.
+Official histories are retained when FRED or EIA requests fail; availability
+alone does not mean the latest collection succeeded. Check Data Health and
+individual observation dates.
 
-## Optional secrets
+Calendar forecasts/actuals/surprises and several research feeds remain
+unconnected. Revised FRED histories are not point-in-time vintage data.
+Do not add illustrative numbers to fill missing financial values.
 
-`SEC_USER_AGENT`: a real application/contact identifier for SEC enrichment.
-FRED and EIA public endpoints used by this project require no paid key.
-`OPENAI_API_KEY` is optional for the separate filing-analysis example, and is
-not read by the default refresh or deployment workflow.
+## Optional configuration
 
-## Remaining limitations
-
-- Equity/universe pricing and all dependent stock analytics need a working
-  provider; do not replace missing values with illustrative numbers.
-- Forecast/actual/surprise calendar fields and several research feeds remain
-  unconnected.
-- Revised historical FRED values are not point-in-time vintage observations.
-- Confirm Actions browser evidence and the actual deployment before declaring
-  the dashboard live.
+SEC_USER_AGENT can enable SEC enrichment with a real application/contact
+identifier. Public FRED and EIA collection requires no paid API key.
+OPENAI_API_KEY is used only by the separate filing-analysis example, never by
+the default refresh or deploy workflows.

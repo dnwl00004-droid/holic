@@ -1,6 +1,6 @@
 """Validated refresh entrypoint. No paid APIs and no demo fallback."""
 from __future__ import annotations
-import argparse, copy, json, os, shutil, subprocess, sys, tempfile
+import argparse, copy, json, os, shutil, sys, tempfile, time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -10,6 +10,7 @@ from src.reliability import atomic_json, blank_snapshot, is_demo, now, read_json
 from src.providers.live_history import build_official_history, REGISTRY
 from src.providers.macro_official_v8 import nyfed_reference_rates
 from src.analytics.macro_v8 import macro_scores, sector_macro_fit
+from src.refresh_support import run_provider_job, history_provider_health, snapshot_stamp
 
 def refresh(web="web", macro_only=False, extended=False, selected=None):
     web = Path(web).resolve(); web.mkdir(parents=True, exist_ok=True)
@@ -27,21 +28,23 @@ def refresh(web="web", macro_only=False, extended=False, selected=None):
         if prior_signals.exists(): shutil.copy2(prior_signals, signal_log)
         def stage(label, command, timeout=240):
             before = read_json(candidate, {})
+            stage_attempt = now(); stage_started = time.monotonic()
             try:
-                r = subprocess.run([sys.executable, *command], cwd=ROOT, capture_output=True, timeout=timeout)
-                if r.returncode: raise RuntimeError("exit_" + str(r.returncode))
+                duration = run_provider_job(label, command, cwd=ROOT, timeout=timeout)
                 after = read_json(candidate); validate_snapshot(after)
                 if label == "Yahoo Finance / equity universe":
                     for key in ("macro_v8","macro_v9","data_health","history_v10","signal_backtests","revision_rankings","stress_library"):
                         if key not in after and key in before: after[key] = before[key]
                     after["sources"] = {**before.get("sources",{}),**after.get("sources",{})}
                     atomic_json(candidate,after)
-                health.append({"source": label, "status": "ok", "last_attempt": now(), "last_success": now(), "error": None})
+                health.append({"source": label, "status": "ok", "last_attempt": stage_attempt, "last_success": now(), "duration_seconds": duration, "error": None})
                 return True
             except Exception as e:
                 atomic_json(candidate, before)
                 prior_health=next((p for p in previous.get("data_health",{}).get("providers",[]) if p.get("source")==label),{})
-                health.append({"source": label, "status": "stale" if before.get("tickers") else "unavailable", "last_attempt": now(), "last_success": prior_health.get("last_success"), "error": type(e).__name__ + ":" + str(e)[:40]})
+                error = type(e).__name__ + ":" + str(e)[:80]
+                print(f"[refresh] {label}: retained verified cache ({error})", flush=True)
+                health.append({"source": label, "status": "stale" if before.get("tickers") else "unavailable", "last_attempt": stage_attempt, "last_success": prior_health.get("last_success"), "duration_seconds": round(time.monotonic()-stage_started, 2), "error": error})
                 return False
         stocks_ok = False
         if not macro_only:
@@ -57,10 +60,13 @@ def refresh(web="web", macro_only=False, extended=False, selected=None):
             prior=next((p for p in previous.get("data_health",{}).get("providers",[]) if p.get("source") in ("Yahoo Finance / equity universe","Yahoo Finance / equities")),{})
             health.append({"source":"Yahoo Finance / equity universe","status":"stale" if snap.get("tickers") else "unavailable","last_success":None,"last_attempt":None,"error":"not yet collected",**prior,"refresh_note":"Skipped in macro-only run"})
         snap = read_json(candidate)
+        fred_started = time.monotonic()
+        print("[refresh] FRED official histories: started", flush=True)
         items = build_official_history(history, selected=selected)
         if selected:
             touched = {x["id"] for x in items}
             items += [x for x in read_json(history / "index.json", {}).get("items", []) if x["id"] not in touched and "demo" not in str(x.get("source", "")).lower() and x.get("id") in REGISTRY]
+        health.append({**history_provider_health("FRED official histories", items), "duration_seconds": round(time.monotonic()-fred_started, 2)})
         fred = {}
         for item in items:
             h = read_json(staging / item["path"], {}) if item.get("path") else {}
@@ -95,8 +101,24 @@ def refresh(web="web", macro_only=False, extended=False, selected=None):
         for rec in snap.get("tickers", []): rec.setdefault("v8", {})["macro_fit"] = sector_macro_fit(rec.get("sector"), regime)
         if extended:
             from src.providers.assets_live import collect_assets
-            asset_items, commodities, market_assets = collect_assets(history)
+            asset_output = staging / "asset-result.json"
+            asset_started = time.monotonic(); asset_error = None
+            try:
+                run_provider_job("Yahoo Finance / market and futures", ["-m", "src.providers.assets_live", "--history-root", str(history), "--output", str(asset_output)], cwd=ROOT, timeout=300)
+                result = read_json(asset_output)
+                asset_items, commodities, market_assets = result["items"], result["commodities"], result["market"]
+            except Exception as e:
+                error_code = type(e).__name__ + ":" + str(e)[:80]
+                asset_error = error_code
+                print(f"[refresh] Market and futures: retained verified cache ({error_code})", flush=True)
+                def unavailable(*args, **kwargs):
+                    raise RuntimeError(error_code)
+                asset_items, commodities, market_assets = collect_assets(history, fetch=unavailable)
             items.extend(asset_items)
+            asset_health = history_provider_health("Yahoo Finance / market and futures", asset_items)
+            asset_health["duration_seconds"] = round(time.monotonic()-asset_started, 2)
+            if asset_error: asset_health["error"] = asset_error
+            health.append(asset_health)
             snap.setdefault("macro_v9",{})["commodities"] = commodities
             snap["macro_v8"]["market"] = market_assets
         else:
@@ -113,7 +135,10 @@ def refresh(web="web", macro_only=False, extended=False, selected=None):
             prior_events=previous.get("macro_v9",{}).get("calendar",{}).get("events",[])
             cal.setdefault("events",[]).extend({**e,"status":"stale"} for e in prior_events if e.get("source") in failed_sources)
         from src.providers.eia_live import build_eia
+        eia_started = time.monotonic()
+        print("[refresh] EIA official histories: started", flush=True)
         eia_items=build_eia(history)
+        health.append({**history_provider_health("U.S. EIA inventories", eia_items), "duration_seconds": round(time.monotonic()-eia_started, 2)})
         items.extend(eia_items)
         inventories={}
         for item in eia_items:
@@ -138,7 +163,7 @@ def refresh(web="web", macro_only=False, extended=False, selected=None):
                 else:
                     items.append({"id":sid,"kind":"commodity",**meta,"count":0,"path":None,"source":"Yahoo Finance / yfinance","status":"unavailable","error":"price feed unavailable or not collected","last_attempt":None,"last_success":None})
             contracts.setdefault(sid,{**meta,"value":None,"date":None,"source":"Yahoo Finance / yfinance","status":"unavailable","error":"price feed unavailable or not collected"})
-        counts = {kind: sum(x.get("kind") == kind and x.get("count", 0) > 0 for x in items) for kind in ("fred", "commodity", "market", "eia")}
+        counts = {kind: sum(x.get("kind") == kind and x.get("count", 0) > 0 for x in items) for kind in ("fred", "commodity", "market", "eia", "derived")}
         counts["commodities"] = counts.pop("commodity"); counts["calendar_events"] = len(combined)
         index = {"schema_version": "13.0", "items": items, "counts": counts, "updated_at": now(), "calendar_path": "history/calendar_archive.json"}
         atomic_json(history / "index.json", index); atomic_json(history / "manifest.json", index)
@@ -152,7 +177,7 @@ def refresh(web="web", macro_only=False, extended=False, selected=None):
         for item in items:
             if item.get("path") and not valid_history(read_json(staging / item["path"], {}).get("history")): raise ValueError("manifest points to invalid history")
         if previous:
-            stamp = previous.get("meta", {}).get("as_of") or "unknown"
+            stamp = snapshot_stamp(previous)
             atomic_json(web / "snapshots" / (stamp + ".json"), previous)
         for src in history.rglob("*.json"):
             atomic_json(web / "history" / src.relative_to(history), read_json(src))

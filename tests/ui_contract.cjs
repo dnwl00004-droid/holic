@@ -21,6 +21,8 @@ async function run(fixture=false,failFetch=false,demoResponse=false){
  assert.equal(afterRelease.high_impact_next_7d,0,'released event must leave upcoming risk');
  const etMidnight=w.eval("currentCalendar({events:[{date:'2026-10-02',importance:'HIGH'}]},new Date('2026-10-02T02:00:00Z'))");
  assert.equal(etMidnight.events[0].days_from_today,1,'countdown must respect ET, not UTC midnight');
+ const aligned=w.eval("alignHistoryComparison([{date:'2025-01-01',value:10},{date:'2025-01-02',value:11}],[{date:'2025-01-02',value:100},{date:'2025-01-03',value:120}])");
+ assert.equal(aligned.primary.length,1,'comparison must use shared dates');assert.equal(aligned.primary[0].date,aligned.overlay[0].date,'comparison baselines must align');
  assert(w.document.querySelectorAll('.sidebar-nav button').length>=45,'navigation missing: '+errors.join(' | '));
  for(const b of w.document.querySelectorAll('.sidebar-nav button')){b.click();await new Promise(r=>setTimeout(r,5));assert(w.document.querySelectorAll('.view.active').length===1,'incorrect active view');assert(w.document.getElementById(b.dataset.tab),'missing view '+b.dataset.tab)}
  if(fixture){
@@ -32,6 +34,23 @@ async function run(fixture=false,failFetch=false,demoResponse=false){
   w.eval("activate('screenerpro');SCREEN.view='table';renderPro()");w.document.querySelector('#savedName').value='test-screen';w.document.querySelector('#saveScreen').click();assert(w.localStorage.getItem('rs_saved_screens').includes('test-screen'),'saved screen missing');
  }
  if(failFetch||demoResponse){assert(!w.document.querySelector('.demo-banner'),'silent demo fallback');assert.strictEqual(w.eval('DATA.tickers.length'),0,'unverified stocks must not appear')}
+ if(!fixture&&!failFetch&&!demoResponse){
+  const history=JSON.parse(fs.readFileSync(path.join(root,'history/fred/DGS10.json'))).history;
+  w.eval("renderHistoryRows(HISTORY_CACHE.DGS10?.history||[],{unit:'%'})");
+  w.eval(`renderHistoryRows(${JSON.stringify(history)},{unit:'%'})`);
+  assert.equal(w.document.querySelectorAll('#historyRows tr').length,200,'MAX table must keep a bounded DOM');
+  assert(w.document.querySelector('#historyRows').textContent.includes(history.at(-1).date),'first page must show newest observations');
+  w.document.querySelector('[data-history-page="last"]').click();
+  assert(w.document.querySelector('#historyRows').textContent.includes(history[0].date),'oldest observations must remain accessible');
+  w.document.querySelector('#historyPageNumber').value='2';w.document.querySelector('#historyPageNumber').dispatchEvent(new w.Event('change'));
+  assert(w.document.querySelector('#historyRows').textContent.includes(history.at(-201).date),'page jump must use the correct offset');
+  w.eval("HISTORY_CACHE.DGS10={source:'FRED',history:[{date:'2025-01-01',value:true}]} ");
+  assert.equal(await w.eval("fetchHistoryItem('DGS10')"),null,'boolean observations must be rejected');
+  const fetch=w.fetch;w.fetch=async p=>String(p).includes('DGS10.json')?{ok:false,status:503}:fetch(p);
+  w.document.querySelector('#historySeries').value='DGS10';await w.eval('loadHistorySelected()');
+  assert.equal(w.document.querySelector('#historyRows').children.length,0,'failed history must not retain previous table');
+  assert.equal(w.document.querySelector('#historyLatest').textContent,'N/A','failed history must not show prior value');w.fetch=fetch;
+ }
  await new Promise(r=>setTimeout(r,80));assert.deepStrictEqual(errors,[],`runtime errors (${fixture?'fixture':'live'})`);const routeCount=w.document.querySelectorAll('.sidebar-nav button').length;dom.window.close();
  return {scenario:demoResponse?'demo rejected':failFetch?'503 fallback':fixture?'fixture interactions':'real snapshot',routes:routeCount,status:'passed'};
 }

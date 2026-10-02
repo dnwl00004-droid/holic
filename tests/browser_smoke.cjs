@@ -46,12 +46,25 @@ const server = http.createServer((req, res) => {
       await page.locator('#historySeries').selectOption('DGS10');
       await page.waitForFunction(() => document.querySelector('#historyRows').children.length > 0);
       await page.locator('#historyRanges button[data-range="MAX"]').click();
+      const expected = JSON.parse(fs.readFileSync(path.join(root,'history/fred/DGS10.json'))).history;
+      await page.waitForFunction(total => document.querySelector('#historyPager').textContent.includes(total.toLocaleString()),expected.length);
       const rows = await page.locator('#historyRows tr').count();
-      assert(rows > 0, `${name}: history loads`);
+      assert.equal(rows, 200, `${name}: history table uses bounded pages`);
+      assert((await page.locator('#historyRows').textContent()).includes(expected.at(-1).date),`${name}: newest observation loads`);
+      await page.locator('[data-history-page="last"]').click();
+      assert((await page.locator('#historyRows').textContent()).includes(expected[0].date),`${name}: oldest observation remains accessible`);
+      const exportPromise = page.waitForEvent('download');
+      await page.locator('#historyExportButton').click();
+      const exported = await exportPromise;
+      const exportPath = path.join(out,`${name}-history.csv`);
+      await exported.saveAs(exportPath);
+      const csv = fs.readFileSync(exportPath,'utf8');
+      assert.equal(csv.split('\r\n').length,expected.length+1,`${name}: CSV must export all selected observations`);
+      assert(csv.includes(expected[0].date)&&csv.includes(expected.at(-1).date),`${name}: CSV retains both history endpoints`);
       assert.deepEqual(errors, [], `${name}: JavaScript runtime errors`);
       const overflow = await page.evaluate(() => ({viewport:innerWidth, content:document.documentElement.scrollWidth}));
       assert(overflow.content <= overflow.viewport + 1, `${name}: page-wide overflow ${JSON.stringify(overflow)}`);
-      report.push({viewport:name, routes:routes.length, historyRows:rows, runtimeErrors:errors, overflow, status:'passed'});
+      report.push({viewport:name, routes:routes.length, renderedHistoryRows:rows, availableHistoryRows:expected.length,fullCSVExport:'passed',runtimeErrors:errors, overflow, status:'passed'});
       await page.close();
     }
     fs.writeFileSync(path.join(out,'browser-report.json'), JSON.stringify(report,null,2));

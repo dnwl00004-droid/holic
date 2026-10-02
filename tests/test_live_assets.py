@@ -45,3 +45,22 @@ def test_boolean_is_not_a_stock_price():
     snap=blank_snapshot();snap["tickers"]=[{"ticker":"TEST","price":{"close":True}}]
     import pytest
     with pytest.raises(ValueError):validate_snapshot(snap)
+
+
+def test_full_derived_history_survives_source_outage(tmp_path):
+    dates=pd.date_range("2024-01-01",periods=300,freq="D")
+    def fetch(*a,**k):
+        return {"GC=F":pd.DataFrame({"close":[2000+i for i in range(300)]},index=dates),
+                "SI=F":pd.DataFrame({"close":[20+i/100 for i in range(300)]},index=dates)}
+    items,_,_=collect_assets(tmp_path,fetch)
+    ratio=next(x for x in items if x["id"]=="GOLD_SILVER_RATIO")
+    assert ratio["count"]==300 and ratio["status"]=="ok"
+    rows=read_json(tmp_path/"commodities/GOLD_SILVER_RATIO.json")["history"]
+    import pytest
+    assert rows[0]["value"]==100 and rows[-1]["value"]==pytest.approx(2299/22.99)
+    def outage(*a,**k):raise TimeoutError()
+    second,summary,_=collect_assets(tmp_path,outage)
+    cached=next(x for x in second if x["id"]=="GOLD_SILVER_RATIO")
+    assert cached["status"]=="stale" and cached["count"]==300
+    assert read_json(tmp_path/"commodities/GOLD_SILVER_RATIO.json")["history"]==rows
+    assert summary["derived"]["gold_silver_ratio"]["status"]=="stale"

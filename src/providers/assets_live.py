@@ -6,7 +6,7 @@ import pandas as pd
 from .commodities_v9 import COMMODITIES
 from .history_v10 import MARKET_TICKERS
 from .yahoo import download_daily
-from ..reliability import read_json, store_history
+from ..reliability import store_history, atomic_json
 
 
 def summarize(history):
@@ -41,7 +41,7 @@ def collect_assets(root, fetch=download_daily):
         fetch_error = None
     except Exception as e:
         frames = {}; fetch_error = type(e).__name__
-    items = []; contracts = {}; market = {}
+    items = []; contracts = {}; market = {}; full_histories = {}; source_items = {}
     for sid, meta in registry.items():
         folder = "commodities" if meta["kind"] == "commodity" else "market"
         name = sid.replace("=","_").replace("^","_").replace("-","_") + ".json"
@@ -63,6 +63,8 @@ def collect_assets(root, fetch=download_daily):
                 "status":data["status"],"last_attempt":data.get("last_attempt"),"last_success":data.get("last_success"),"error":data.get("error"),
                 "method":"daily adjusted close; trading-session lookbacks","refresh_frequency":"daily after US close"}
         items.append(item)
+        full_histories[sid] = history
+        source_items[sid] = item
         value = {**meta,**summarize(history),"source":item["source"],"source_url":payload["source_url"] if payload else data.get("source_url"),
                  "status":item["status"],"last_update":item["last_success"],"error":item["error"],"method":item["method"]}
         (contracts if meta["kind"]=="commodity" else market)[sid] = value
@@ -76,11 +78,29 @@ def collect_assets(root, fetch=download_daily):
     # Same-date joins avoid ratios between unrelated observation dates.
     derived = {}
     for key,a,b,mode,label,unit in (("brent_wti_spread","BZ=F","CL=F","spread","Brent-WTI Spread","$/bbl"),
-        ("gold_silver_ratio","GC=F","SI=F","ratio","Gold/Silver Ratio","x"),("copper_gold_ratio","HG=F","GC=F","ratio","Copper/Gold Ratio","x")):
-        left = contracts[a].get("history",[]); right = {r["date"]:r["value"] for r in contracts[b].get("history",[])}
+        ("gold_silver_ratio","GC=F","SI=F","ratio","Gold/Silver Ratio","x"),("copper_gold_ratio","HG=F","GC=F","ratio","Copper/Gold Quoted Price Ratio","oz/lb")):
+        left = full_histories[a]; right = {r["date"]:r["value"] for r in full_histories[b]}
         common = [r for r in left if r["date"] in right and (mode=="spread" or right[r["date"]]!=0)]
-        last = common[-1] if common else None
+        history = [{"date":r["date"],"value":r["value"]-right[r["date"]] if mode=="spread" else r["value"]/right[r["date"]]} for r in common]
+        sid = key.upper(); path = root/"commodities"/(sid+".json")
+        meta = {"label":label,"category":"Intermarket","unit":unit,"transform":"level"}
+        data = store_history(path, {"id":sid,"kind":"derived","source":"Derived from Yahoo futures","meta":meta,"history":history,"method":"same-date futures "+mode,"inputs":[a,b]} if history else None, "no_same_date_input_observations")
+        if history and data["status"]=="ok" and any(source_items[t]["status"]!="ok" for t in (a,b)):
+            data.update(status="stale",last_success=min((source_items[t].get("last_success") for t in (a,b)),key=lambda t:t or ""),error="derived_from_retained_source_history")
+            atomic_json(path,data)
+        history = data["history"]; last = history[-1] if history else None
+        items.append({"id":sid,"kind":"derived",**meta,"source":"Derived from Yahoo futures","path":f"history/commodities/{sid}.json" if history else None,"count":len(history),"start":history[0]["date"] if history else None,"end":history[-1]["date"] if history else None,"status":data["status"],"last_attempt":data.get("last_attempt"),"last_success":data.get("last_success"),"error":data.get("error"),"method":"same-date futures "+mode,"refresh_frequency":"daily after US close"})
         derived[key] = {"label":label,"unit":unit,"date":last["date"] if last else None,
-                        "value":(last["value"]-right[last["date"]] if mode=="spread" else last["value"]/right[last["date"]]) if last else None,
+                        "value":last["value"] if last else None,"status":data["status"],
                         "method":"same-date futures "+mode}
     return items, {"contracts":contracts,"derived":derived,"breadth":breadth}, market
+
+
+if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--history-root", required=True)
+    parser.add_argument("--output", required=True)
+    args = parser.parse_args()
+    items, commodities, market = collect_assets(args.history_root)
+    atomic_json(args.output, {"items": items, "commodities": commodities, "market": market})
