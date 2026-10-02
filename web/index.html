@@ -1,0 +1,312 @@
+<!doctype html><html lang="ko"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<title>RS Radar · Market Terminal</title><meta name="description" content="US equity, macro and commodity research terminal with verified source dates and data health."/><link rel="icon" href="favicon.svg" type="image/svg+xml"/><link rel="stylesheet" href="styles.css"/><link rel="stylesheet" href="terminal.css"/></head><body>
+<div class="shell">
+<header class="topbar">
+ <button id="menuButton" class="icon-btn menu-button" aria-label="Open navigation">☰</button><div class="brand"><div class="eyebrow">MARKET DISCOVERY TERMINAL</div><h1>RS Radar <span class="v2">v13</span></h1></div>
+ <div class="global-command"><span class="cmd-icon">⌕</span><input id="globalSearch" placeholder="Ticker / company / macro series"/><span class="cmd-hint">ENTER</span></div>
+ <div class="top-status"><div id="dataFreshness" class="data-freshness"></div><div class="header-actions"><button id="densityBtn" class="icon-btn" title="Density">≡</button><button id="refreshBtn" class="icon-btn">↻</button><button id="themeBtn" class="icon-btn">◐</button></div></div>
+</header>
+<div class="app-body">
+<nav class="tabs sidebar-nav">
+ <div class="nav-group"><div class="nav-label">OVERVIEW</div><button data-tab="today" class="active">Today</button><button data-tab="workbench">Stocks</button><button data-tab="markethealth">Market Health</button></div>
+ <div class="nav-group"><div class="nav-label">MACRO</div><button data-tab="macrofull">Macro Overview</button><button data-tab="ratesfocus">Rates & Curve</button><button data-tab="inflationfocus">Inflation</button><button data-tab="growthfocus">Growth & Labor</button><button data-tab="liquidityfocus">Liquidity</button><button data-tab="creditfocus">Credit</button><button data-tab="fxfocus">FX & Dollar</button><button data-tab="housingfocus">Housing</button><button data-tab="calendar">Calendar</button><button data-tab="historyexplorer">History</button></div>
+ <div class="nav-group"><div class="nav-label">COMMODITIES</div><button data-tab="commodities">Overview</button><button data-tab="energyfocus">Energy</button><button data-tab="metalsfocus">Metals</button><button data-tab="agrifocus">Agriculture</button></div>
+ <div class="nav-group"><div class="nav-label">DISCOVER</div><button data-tab="screenlab">Screener</button><button data-tab="groups">Groups</button><button data-tab="rsmap">RS Map</button><button data-tab="setups">Setups</button><button data-tab="ranks">Ranks</button></div>
+ <div class="nav-group"><div class="nav-label">RESEARCH</div><button data-tab="research">Research</button><button data-tab="intelligence">Intelligence</button><button data-tab="compare">Compare</button></div>
+ <div class="nav-group"><div class="nav-label">VALIDATE</div><button data-tab="replay">Replay</button><button data-tab="monitor">Portfolio & Alerts</button><button data-tab="datahealth">Data Health</button></div>
+</nav>
+<div class="workspace"><div id="liveBanner" role="status" class="live-banner">Loading verified data…</div><section id="marketStrip" class="market-strip"></section><main>
+
+<section id="workbench" class="view active"><div class="workbench">
+<aside class="left-panel panel"><div class="toolbar compact"><input id="search" placeholder="Ticker / company"/><select id="sectorFilter"><option value="">All sectors</option></select></div>
+<div class="section-title"><span>LEADERS</span><span id="resultCount"></span></div><div id="stockList" class="stock-list"></div></aside>
+<section class="center-panel panel"><div id="heroHead"></div><div id="periodStrip" class="period-strip"></div>
+<canvas id="priceCanvas" class="price-canvas"></canvas><div id="heroStats" class="hero-stats"></div>
+<div class="section-title"><span>WHY THIS STOCK?</span><span id="heroStatus"></span></div><div id="whyList" class="why-list"></div>
+<div class="section-title"><span>RATING HISTORY</span><span>rolling snapshot history</span></div><canvas id="historyCanvas" class="history-canvas"></canvas></section>
+<aside class="right-panel panel"><div class="section-title"><span>5-AXIS PROFILE</span><span>0–100</span></div><canvas id="radarCanvas" class="radar-canvas"></canvas><div id="insightCards" class="insight-cards"></div>
+<div class="section-title"><span>PEER-RELATIVE FACTOR GRADES</span><span>sector</span></div><div id="factorGrades" class="grade-grid"></div>
+<div class="section-title"><span>WARNING FLAGS</span><span id="warningCount"></span></div><div id="warnings" class="warning-list"></div></aside>
+</div></section>
+
+
+<section id="markethealth" class="view">
+<div class="market-health-grid">
+ <div class="panel">
+   <div class="panel-head"><div><div class="eyebrow">PARTICIPATION, NOT JUST INDEX PRICE</div><h2>Market Health</h2></div><div id="qualityBadge"></div></div>
+   <div id="breadthKpis" class="breadth-kpis"></div>
+   <div class="section-title"><span>ADVANCE PARTICIPATION</span><span>20 sessions</span></div>
+   <canvas id="breadthCanvas" class="breadth-canvas"></canvas>
+ </div>
+ <div class="panel">
+   <div class="section-title"><span>STOCKBEE-STYLE PARTICIPATION</span><span>our calculations</span></div>
+   <div id="stockbeeGrid" class="stockbee-grid"></div>
+   <div class="section-title"><span>MARKET QUALITY COMPONENTS</span><span>0–100 total</span></div>
+   <div id="marketComponents" class="insight-cards"></div>
+ </div>
+</div>
+</section>
+
+
+<section id="macrofull" class="view">
+<div class="macro-layout">
+ <div class="panel">
+  <div class="panel-head"><div><div class="eyebrow">GROWTH × INFLATION × LIQUIDITY</div><h2>Macro Regime</h2></div><div id="macroRegimeBadge"></div></div>
+  <div id="macroAxes" class="macro-axes"></div>
+  <div class="regime-map">
+   <div class="regime-cell slowdown"><b>DISINFLATION<br>SLOWDOWN</b><small>Growth ↓ · Inflation ↓</small></div>
+   <div class="regime-cell goldilocks"><b>GOLDILOCKS</b><small>Growth ↑ · Inflation ↓</small></div>
+   <div class="regime-cell stagflation"><b>STAGFLATION</b><small>Growth ↓ · Inflation ↑</small></div>
+   <div class="regime-cell reflation"><b>REFLATION</b><small>Growth ↑ · Inflation ↑</small></div>
+   <div id="regimeDot" class="regime-dot"></div>
+  </div>
+  <div class="section-title"><span>MACRO HISTORY</span><span>daily snapshot score</span></div>
+  <canvas id="macroHistoryCanvas" class="breadth-canvas"></canvas>
+ </div>
+ <div class="panel">
+  <div class="panel-head"><div><div class="eyebrow">OFFICIAL + MARKET DATA</div><h2>Macro Tape</h2></div></div>
+  <div id="macroHeadline" class="macro-headline"></div>
+  <div class="section-title"><span>MARKET PROXIES</span><span>Yahoo</span></div>
+  <div id="macroMarketTape" class="macro-market-tape"></div>
+ </div>
+</div>
+<div class="macro-category-grid">
+ <div class="panel"><div class="section-title"><span>RATES & CURVE</span><span>FRED / NY Fed</span></div><div id="macroRates"></div></div>
+ <div class="panel"><div class="section-title"><span>INFLATION</span><span>FRED</span></div><div id="macroInflation"></div></div>
+ <div class="panel"><div class="section-title"><span>GROWTH & LABOR</span><span>FRED / Atlanta Fed</span></div><div id="macroGrowth"></div></div>
+ <div class="panel"><div class="section-title"><span>LIQUIDITY</span><span>Fed / FRED</span></div><div id="macroLiquidity"></div></div>
+ <div class="panel"><div class="section-title"><span>CREDIT</span><span>FRED</span></div><div id="macroCredit"></div></div>
+ <div class="panel"><div class="section-title"><span>SECTOR MACRO FIT</span><span>heuristic context</span></div><div id="macroSectorFit"></div></div>
+</div>
+<p class="fine">Macro regime and sector-fit scores are transparent local heuristics. They summarize data; they are not forecasts or trade recommendations.</p>
+</section>
+
+
+<section id="ratesfocus" class="view focus-view">
+ <div class="focus-header"><div><div class="eyebrow">RATES · CURVE · REAL YIELDS</div><h2>Rates & Curve</h2><p>Policy, Treasury curve, real yields and inflation expectations.</p></div><button class="recipe" data-open-history="DGS10">Open 10Y history</button></div>
+ <div id="ratesFocusGrid" class="focus-grid"></div>
+</section>
+<section id="inflationfocus" class="view focus-view">
+ <div class="focus-header"><div><div class="eyebrow">PRICES · WAGES · EXPECTATIONS</div><h2>Inflation</h2><p>Headline/core inflation, producer prices, wages and breakevens.</p></div><button class="recipe" data-open-history="CPIAUCSL">Open CPI history</button></div>
+ <div id="inflationFocusGrid" class="focus-grid"></div>
+</section>
+<section id="growthfocus" class="view focus-view">
+ <div class="focus-header"><div><div class="eyebrow">OUTPUT · LABOR · DEMAND</div><h2>Growth & Labor</h2><p>GDP, jobs, claims, openings, production, retail and housing.</p></div><button class="recipe" data-open-history="UNRATE">Open labor history</button></div>
+ <div id="growthFocusGrid" class="focus-grid"></div>
+</section>
+<section id="liquidityfocus" class="view focus-view">
+ <div class="focus-header"><div><div class="eyebrow">FED BALANCE SHEET · RESERVES · MONEY</div><h2>Liquidity</h2><p>Fed assets, reserves, RRP, Treasury cash, M2 and financial conditions.</p></div><button class="recipe" data-open-history="WALCL">Open Fed balance sheet</button></div>
+ <div id="liquidityFocusGrid" class="focus-grid"></div>
+</section>
+<section id="creditfocus" class="view focus-view">
+ <div class="focus-header"><div><div class="eyebrow">SPREADS · FINANCIAL CONDITIONS</div><h2>Credit</h2><p>High-yield and investment-grade stress with market credit proxies.</p></div><button class="recipe" data-open-history="BAMLH0A0HYM2">Open HY spread history</button></div>
+ <div id="creditFocusGrid" class="focus-grid"></div>
+</section>
+
+<section id="fxfocus" class="view focus-view">
+ <div class="focus-header"><div><div class="eyebrow">DOLLAR · KRW · CROSS-ASSET FX</div><h2>FX & Dollar</h2><p>Dollar index and official KRW/USD history, with room for more FX pairs later.</p></div><button class="recipe" data-open-history="DEXKOUS">Open KRW/USD history</button></div>
+ <div id="fxFocusGrid" class="focus-grid"></div>
+</section>
+<section id="housingfocus" class="view focus-view">
+ <div class="focus-header"><div><div class="eyebrow">RATES · STARTS · PERMITS</div><h2>Housing</h2><p>Mortgage rates, housing starts and building permits.</p></div><button class="recipe" data-open-history="MORTGAGE30US">Open mortgage history</button></div>
+ <div id="housingFocusGrid" class="focus-grid"></div>
+</section>
+<section id="energyfocus" class="view focus-view">
+ <div class="focus-header"><div><div class="eyebrow">OIL · GAS · PRODUCTS · INVENTORIES</div><h2>Energy</h2><p>Futures curves and physical U.S. petroleum inventories.</p></div><button class="recipe" data-open-history="CL=F">Open WTI history</button></div>
+ <div id="energyFocusGrid" class="focus-grid"></div><div class="section-title"><span>EIA INVENTORIES</span><span>weekly history</span></div><div id="energyInventoryGrid" class="focus-grid"></div>
+</section>
+<section id="metalsfocus" class="view focus-view">
+ <div class="focus-header"><div><div class="eyebrow">PRECIOUS · INDUSTRIAL METALS</div><h2>Metals</h2><p>Gold, silver, copper, platinum and palladium with full history.</p></div><button class="recipe" data-open-history="GC=F">Open Gold history</button></div>
+ <div id="metalsFocusGrid" class="focus-grid"></div>
+</section>
+<section id="agrifocus" class="view focus-view">
+ <div class="focus-header"><div><div class="eyebrow">GRAINS · SOFTS · LIVESTOCK</div><h2>Agriculture</h2><p>Corn, wheat, soybeans, coffee, cocoa, sugar, cotton and cattle.</p></div><button class="recipe" data-open-history="ZC=F">Open Corn history</button></div>
+ <div id="agriFocusGrid" class="focus-grid"></div>
+</section>
+<section id="datahealth" class="view focus-view">
+ <div class="focus-header"><div><div class="eyebrow">SOURCE · FRESHNESS · COVERAGE</div><h2>Data Health</h2><p>What is loaded, where it came from, and how much history is available.</p></div><button id="reloadDataHealth" class="recipe">Refresh status</button></div>
+ <div id="dataHealthSummary" class="intel-summary"></div>
+ <div class="data-health-layout"><div class="panel"><div class="section-title"><span>PROVIDERS</span><span>provenance</span></div><div id="providerHealth"></div></div><div class="panel"><div class="section-title"><span>HISTORY COVERAGE</span><span>series / observations</span></div><div id="historyHealth"></div></div></div>
+</section>
+
+<section id="commodities" class="view">
+<div class="commodity-layout">
+ <div class="panel">
+  <div class="panel-head"><div><div class="eyebrow">ENERGY · METALS · AGRICULTURE</div><h2>Commodity Board</h2></div><div id="commodityBreadth"></div></div>
+  <div id="commodityCategories"></div>
+ </div>
+ <div class="panel">
+  <div class="section-title"><span>INTERMARKET RATIOS</span><span>derived</span></div><div id="commodityRatios"></div>
+  <div class="section-title"><span>EIA INVENTORIES</span><span>weekly</span></div><div id="eiaInventory"></div>
+ </div>
+</div>
+<p class="fine">Futures are contextual market prices. Contract rolls can affect returns. EIA inventories are physical U.S. petroleum stock data.</p>
+</section>
+
+<section id="calendar" class="view">
+<div class="calendar-layout">
+ <div class="panel">
+  <div class="panel-head"><div><div class="eyebrow">WHAT CAN MOVE THE MARKET NEXT?</div><h2>Macro Event Calendar</h2></div><div id="calendarRisk"></div></div>
+  <div class="calendar-filters"><button class="recipe active" data-cal="ALL">All</button><button class="recipe" data-cal="HIGH">High impact</button><button class="recipe" data-cal="Economic Data">Economic</button><button class="recipe" data-cal="Central Bank">Central Bank</button><button class="recipe" data-cal="Energy">Energy</button><button class="recipe" data-cal="Energy Policy">OPEC</button><button class="recipe" data-cal="Treasury Supply">Treasury</button></div>
+  <div id="eventCalendar" class="event-calendar"></div>
+ </div>
+ <div class="panel">
+  <div class="section-title"><span>NEXT 7 DAYS</span><span>event risk</span></div><div id="nextWeekEvents"></div>
+  <div class="section-title"><span>CALENDAR SOURCES</span><span>official</span></div>
+  <div class="formula-box">Federal Reserve · BLS · BEA · EIA · U.S. Treasury · OPEC<br><br>Times are ET where supplied. Holiday weeks and OPEC decisions can change after initial scheduling.</div>
+ </div>
+</div>
+</section>
+<section id="historyexplorer" class="view">
+<div class="history-layout">
+ <aside class="panel history-controls">
+  <div class="panel-head"><div><div class="eyebrow">FULL HISTORICAL DATABASE</div><h2>History Explorer</h2></div></div>
+  <label class="history-label">Dataset<select id="historyKind"><option value="ALL">All datasets</option><option value="fred">Macro / FRED</option><option value="commodity">Commodities</option><option value="derived">Intermarket ratios</option><option value="eia">EIA inventories</option><option value="market">Market proxies</option></select></label>
+  <label class="history-label">Series<select id="historySeries"></select></label>
+  <label class="history-label">Overlay / normalize<select id="historyOverlay"><option value="">None</option></select></label>
+  <div class="section-title"><span>RANGE</span><span id="historyRangeLabel"></span></div>
+  <div id="historyRanges" class="history-ranges"><button class="recipe" data-range="3M">3M</button><button class="recipe active" data-range="1Y">1Y</button><button class="recipe" data-range="5Y">5Y</button><button class="recipe" data-range="10Y">10Y</button><button class="recipe" data-range="MAX">MAX</button></div>
+  <button id="historyExportButton" class="recipe">Export selected history CSV</button><p id="historyCompareNote" class="fine"></p><div id="historyMeta" class="formula-box"></div>
+  <div class="section-title"><span>HISTORICAL CALENDAR</span><span>BLS / FOMC / BEA</span></div>
+  <label class="history-label">Year<select id="archiveYear"></select></label>
+  <input id="archiveSearch" class="nl-query" placeholder="CPI, FOMC, Employment..."/>
+  <div id="archiveSummary" class="fine"></div>
+ </aside>
+ <section class="panel history-main">
+  <div class="history-chart-head"><div><div class="eyebrow" id="historyCategory">SERIES</div><h2 id="historyTitle">Historical series</h2></div><div id="historyLatest" class="history-latest"></div></div>
+  <canvas id="fullHistoryCanvas" class="full-history-canvas"></canvas>
+  <div id="historyStats" class="intel-summary"></div>
+  <div class="section-title"><span>OBSERVATIONS</span><span>latest rows in selected range</span></div>
+  <div class="history-table-wrap"><table class="history-table"><thead><tr><th>Date</th><th>Value</th><th>Raw</th></tr></thead><tbody id="historyRows"></tbody></table></div>
+  <div class="section-title"><span>RELEASE ARCHIVE</span><span id="archiveCount"></span></div>
+  <div id="archiveEvents" class="archive-events"></div>
+ </section>
+</div>
+<p class="fine">MAX uses the full available source history stored in separate static JSON files. Futures histories can be affected by contract rolls. Historical schedules are source-dependent and do not imply consensus forecasts.</p>
+</section>
+
+<section id="groups" class="view">
+<div class="panel">
+ <div class="panel-head"><div><div class="eyebrow">WHERE LEADERSHIP LIVES</div><h2>Group Rankings</h2></div></div>
+ <div class="group-head"><span>Rank</span><span>Group</span><span>RS</span><span>Short RS</span><span>1M</span><span>3M</span><span>>50DMA</span><span>Setups</span><span>Ready</span></div>
+ <div id="groupTable" class="group-table"></div>
+</div>
+</section>
+
+<section id="intelligence" class="view">
+<div class="intel-grid">
+ <div class="panel">
+  <div class="panel-head"><div><div class="eyebrow">FUNDAMENTAL + FLOW CONTEXT</div><h2>Stock Intelligence</h2></div>
+  <select id="intelTicker" class="intel-select"></select></div>
+  <div id="intelSummary" class="intel-summary"></div>
+  <div class="intel-columns">
+   <div><div class="section-title"><span>QUALITY</span><span>SEC</span></div><div id="qualityPanel"></div></div>
+   <div><div class="section-title"><span>INSIDER</span><span>FORM 4</span></div><div id="insiderPanel"></div></div>
+   <div><div class="section-title"><span>INSTITUTIONAL</span><span>13F</span></div><div id="institutionPanel"></div></div>
+   <div><div class="section-title"><span>SHORT ACTIVITY</span><span>FINRA</span></div><div id="shortPanel"></div></div>
+  </div>
+ </div>
+ <div class="panel">
+  <div class="panel-head"><div><div class="eyebrow">CROSS-ASSET CONTEXT</div><h2>Macro Tape</h2></div></div>
+  <div id="macroGrid" class="macro-grid"></div>
+  <p class="fine">Yahoo-based market proxies. VIX/yield/index symbols are context indicators, not direct trade recommendations.</p>
+ </div>
+</div>
+</section>
+
+<section id="research" class="view">
+<div class="research-grid">
+ <div class="panel">
+  <div class="panel-head"><div><div class="eyebrow">EXPECTATIONS VS REALITY</div><h2>Valuation & Revision</h2></div>
+  <select id="researchTicker" class="intel-select"></select></div>
+  <div id="revisionCards" class="intel-summary"></div>
+  <div class="section-title"><span>REVERSE DCF</span><span>what growth is priced in?</span></div>
+  <div id="reverseDcfPanel"></div>
+  <div class="section-title"><span>EARNINGS REVISION</span><span>Yahoo estimate trend</span></div>
+  <div id="revisionPanel"></div>
+ </div>
+ <div class="panel">
+  <div class="panel-head"><div><div class="eyebrow">EVENT STACK</div><h2>Catalyst Timeline</h2></div></div>
+  <div id="catalystTimeline" class="timeline"></div>
+ </div>
+</div>
+</section>
+
+
+<section id="ranks" class="view">
+<div class="panel">
+ <div class="panel-head"><div><div class="eyebrow">EXPECTATION MOMENTUM</div><h2>Revision & Catalyst Rankings</h2></div></div>
+ <div class="rank-table-head"><span>#</span><span>Ticker</span><span>Revision</span><span>30D EPS</span><span>Net Rev.</span><span>Surprise</span><span>Catalyst</span><span>DCF Context</span></div>
+ <div id="revisionRankTable" class="rank-table"></div>
+</div>
+</section>
+<section id="replay" class="view">
+<div class="panel">
+ <div class="section-title"><span>SIGNAL SCORECARDS</span><span>cross-sectional aggregate</span></div>
+ <div id="signalScorecards" class="signal-scorecards"></div>
+ <div class="panel-head"><div><div class="eyebrow">HONESTER SIGNAL TESTING</div><h2>Historical Replay</h2></div>
+ <select id="replayTicker" class="intel-select"></select></div>
+ <div id="replayStats" class="intel-summary"></div>
+ <div id="replayCaveats" class="formula-box"></div>
+ <div class="section-title"><span>PAST SIGNALS</span><span>20 trading-day hold</span></div>
+ <div id="replayTrades" class="replay-trades"></div>
+</div>
+</section>
+
+<section id="monitor" class="view">
+<div class="monitor-grid">
+ <div class="panel">
+  <div class="panel-head"><div><div class="eyebrow">LOCAL WATCHLIST</div><h2>Watch & Alert</h2></div>
+  <button id="notifyBtn" class="recipe">Enable browser alerts</button></div>
+  <div class="watch-add"><select id="watchTicker" class="intel-select"></select><button id="addWatch" class="recipe">+ Add</button></div>
+  <div id="watchList"></div>
+  <p class="fine">Stored in this browser only. Browser notifications work while the dashboard is open; no server-side push is implied.</p>
+ </div>
+ <div class="panel">
+  <div class="panel-head"><div><div class="eyebrow">PORTFOLIO EXPOSURE</div><h2>Portfolio Lab</h2></div></div>
+  <textarea id="portfolioInput" class="portfolio-input" placeholder="NVDA,10&#10;AVGO,5&#10;MSFT,8"></textarea>
+  <button id="analyzePortfolio" class="recipe">Analyze portfolio</button>
+  <div id="portfolioStats" class="intel-summary"></div>
+  <div id="sectorExposure"></div>
+  <div class="section-title"><span>CORRELATION</span><span>120D aligned returns</span></div><div id="corrMatrix" class="corr-matrix"></div>
+  <div class="section-title"><span>RISK CONTRIBUTION</span><span>annualized covariance</span></div><div id="riskContribution"></div>
+  <div class="section-title"><span>STRESS TEST</span><span>historical + hypothetical</span></div><div id="stressPanel"></div>
+ </div>
+</div>
+</section>
+<section id="screenlab" class="view"><div class="screenlab-grid">
+<div class="panel">
+<div class="panel-head"><div><div class="eyebrow">FORMULA WITHOUT THE FORMULA</div><h2>Screen Lab</h2></div></div>
+<input id="nlQuery" class="nl-query" placeholder="예: RS 90 이상, Stage 2, VCP, pivot 5% 이내"/>
+<div class="recipe-row">
+<button class="recipe" data-q="RS 90 VCP pivot 5">High RS + VCP</button>
+<button class="recipe" data-q="Stage 2 RS 80 setup 70">Stage 2 Leaders</button>
+<button class="recipe" data-q="improving RS 70">Improving RS</button>
+<button class="recipe" data-q="READY">Ready Now</button>
+<button class="recipe" data-q="warning none RS 80">Clean Leaders</button>
+</div>
+<div id="parsedFormula" class="formula-box"></div>
+</div>
+<div class="panel"><div class="section-title"><span>SCREEN RESULTS</span><span id="screenCount"></span></div><div id="screenResults" class="stock-list roomy"></div></div>
+</div></section>
+
+<section id="today" class="view">
+<div class="today-hero" id="todayHero"></div>
+<div class="today-dashboard">
+ <div class="panel today-events"><div class="panel-head"><div><div class="eyebrow">NEXT MARKET MOVERS</div><h2>Upcoming Events</h2></div><button class="recipe" data-jump="calendar">Full calendar</button></div><div id="todayEvents"></div></div>
+ <div class="panel today-changes"><div class="panel-head"><div><div class="eyebrow">CHANGE DETECTION</div><h2>What Changed</h2></div><button class="recipe" data-jump="workbench">Stocks</button></div><div id="changesList"></div></div>
+ <div class="panel today-signals"><div class="panel-head"><div><div class="eyebrow">NEW / READY</div><h2>Stock Signals</h2></div><button class="recipe" data-jump="setups">Setups</button></div><div id="todaySignals"></div></div>
+ <div class="panel today-sectors"><div class="panel-head"><div><div class="eyebrow">LEADERSHIP</div><h2>Sector Rotation</h2></div><button class="recipe" data-jump="groups">Groups</button></div><div id="todaySectors"></div></div>
+ <div class="panel today-score"><div class="panel-head"><div><div class="eyebrow">ENGINE VALIDATION</div><h2>Signal Scorecard</h2></div></div><div id="scorecard"></div><p class="fine">Signals are resolved after 20 trading days.</p></div>
+</div></section>
+
+<section id="rsmap" class="view"><div class="panel"><div class="panel-head"><div><div class="eyebrow">RELATIVE STRENGTH</div><h2>RS Dynamics</h2></div></div>
+<div class="map-wrap"><canvas id="rsCanvas"></canvas><div class="quad-label q1">IMPROVING</div><div class="quad-label q2">LEADING</div><div class="quad-label q3">LAGGING</div><div class="quad-label q4">WEAKENING</div></div>
+<p class="fine">Independent RS Dynamics formula; not proprietary RRG/JdK metrics.</p></div></section>
+
+<section id="setups" class="view"><div class="panel"><div class="section-title"><span>DETECTED SETUPS</span><span>Strength ≠ Setup</span></div><div id="setupGrid" class="cards"></div></div></section>
+
+<section id="compare" class="view"><div class="panel"><div class="panel-head"><div><div class="eyebrow">SIDE BY SIDE</div><h2>Compare Stocks</h2></div></div>
+<div id="compareSelectors" class="compare-selectors"></div><div id="compareTable" class="compare-table-wrap"></div></div></section>
+</main></div></div></div><script src="app.js"></script><script src="terminal.js"></script></body></html>

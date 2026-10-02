@@ -1,0 +1,38 @@
+name: Refresh SEC 13F institutional data
+on:
+  workflow_dispatch:
+    inputs:
+      dataset_url:
+        description: "SEC flattened 13F ZIP URL"
+        required: false
+  schedule:
+    # after the typical Feb/May/Aug/Nov filing windows; URL may need updating
+    - cron: "30 12 5 3,6,9,12 *"
+permissions:
+  contents: write
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Download and map latest configured 13F dataset
+        env:
+          DATASET_URL: ${{ inputs.dataset_url }}
+        run: |
+          if [ -n "$DATASET_URL" ]; then
+            python scripts/update_13f.py --url "$DATASET_URL"
+          else
+            python scripts/update_13f.py
+          fi
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/output/institutional13f.json
+          git diff --cached --quiet || git commit -m "data: refresh 13F institutional map"
+          git push

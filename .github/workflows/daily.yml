@@ -1,0 +1,70 @@
+name: Refresh verified data
+on:
+  workflow_dispatch:
+    inputs:
+      extended:
+        description: Include SEC, estimates, commodities and signal backtests
+        type: boolean
+        default: true
+  push:
+    branches: [main]
+    paths: [src/**, scripts/**, requirements*.txt, .github/workflows/daily.yml]
+  schedule:
+    - cron: '30 22 * * 1-5'
+permissions:
+  contents: read
+concurrency:
+  group: verified-data-pages
+  cancel-in-progress: false
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: pip install -r requirements-dev.txt
+      - run: npm ci --ignore-scripts
+      - name: Validate deterministic calculations
+        run: python -m pytest -q
+      - name: Cache verified provider responses
+        uses: actions/cache@v4
+        with:
+          path: data/cache
+          key: verified-data-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: verified-data-${{ runner.os }}-
+      - name: Fetch, calculate, validate, then promote
+        env:
+          SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+          EXTENDED: ${{ github.event.inputs.extended }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [ "$EXTENDED" != false ]; then
+            python -m scripts.refresh --extended
+          else
+            python -m scripts.refresh
+          fi
+      - name: Validate published data and UI contracts
+        run: |
+          python scripts/validate.py
+          npm run check
+          npm test
+      - name: Save verified source snapshot
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add web/latest.json web/history web/snapshots
+          if [ -f data/output/signal_log.json ]; then git add data/output/signal_log.json; fi
+          if ! git diff --cached --quiet; then
+            git commit -m 'data: validated refresh with provider health'
+            git push
+          fi

@@ -1,0 +1,67 @@
+name: Validate and deploy dashboard
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [web/**, tests/**, package*.json, requirements*.txt, .github/workflows/pages.yml]
+  workflow_run:
+    workflows: [Refresh verified data]
+    types: [completed]
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: dashboard-pages
+  cancel-in-progress: false
+jobs:
+  verify:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: pip install -r requirements-dev.txt
+      - run: npm ci --ignore-scripts
+      - run: python -m compileall -q src scripts
+      - run: python -m pytest -q
+      - run: python scripts/validate.py
+      - run: npm run check && npm test
+      - name: Install browser for Desktop and Mobile verification
+        run: npx playwright install --with-deps chromium
+      - name: Check actual browser navigation and history
+        run: node tests/browser_smoke.cjs
+      - name: Preserve browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-evidence
+          path: test-results/
+          retention-days: 7
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: web
+  deploy:
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+      - name: Deploy verified dashboard
+        id: deployment
+        uses: actions/deploy-pages@v4

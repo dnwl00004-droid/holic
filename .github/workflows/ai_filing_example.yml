@@ -1,0 +1,30 @@
+name: AI filing analyzer example
+on:
+  workflow_dispatch:
+    inputs:
+      ticker:
+        required: true
+      filing_file:
+        description: "Path to a text filing already stored in repo/artifact"
+        required: true
+      filing_date:
+        required: true
+permissions:
+  contents: read
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: Analyze supplied filing text
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: gpt-5-mini
+          FILING_FILE: ${{ inputs.filing_file }}
+          TICKER: ${{ inputs.ticker }}
+          FILING_DATE: ${{ inputs.filing_date }}
+        run: python scripts/analyze_filing.py "$FILING_FILE" --ticker "$TICKER" --date "$FILING_DATE"

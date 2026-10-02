@@ -1,0 +1,22 @@
+name: Data integrity and UI contracts
+on: [pull_request]
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: pip install -r requirements-dev.txt
+      - run: npm ci --ignore-scripts
+      - run: python -m compileall -q src scripts
+      - run: python -m pytest -q
+      - run: npm run check
+      - run: npm test
+      - run: python scripts/validate.py
