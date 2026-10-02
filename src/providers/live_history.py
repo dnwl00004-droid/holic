@@ -1,6 +1,7 @@
 from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from threading import Event, Lock
 import requests
 from .history_v10 import FRED_SERIES, _fred_full_rows, transform_history
 from ..reliability import store_history, now
@@ -32,17 +33,31 @@ REGISTRY = {**{k:v for k,v in FRED_SERIES.items() if k!="WPSFD4"}, **{k: dict(zi
 
 def build_official_history(root, workers=4, selected=None):
     root = Path(root); registry = {k: v for k, v in REGISTRY.items() if not selected or k in selected}
+    circuit = Event(); failures_lock = Lock(); transport_failures = 0
     def fetch(item):
+        nonlocal transport_failures
         sid, meta = item; path = root / "fred" / (sid + ".json")
+        skipped = circuit.is_set()
         try:
+            if skipped:
+                raise RuntimeError("provider_circuit_open_after_transport_failures")
             raw = _fred_full_rows(sid)
+            with failures_lock: transport_failures = 0
             hist = transform_history(raw, meta["transform"])
             d = store_history(path, {"id": sid, "kind": "fred", "source": "FRED", "source_url": "https://fred.stlouisfed.org/series/" + sid,
                                     "meta": meta, "history": hist, "raw_observation_count": len(raw), "vintage": "revised", "method": meta["transform"]})
         except Exception as e:
             # Avoid logging request headers or credentials.
             status = getattr(getattr(e, "response", None), "status_code", None)
-            d = store_history(path, None, type(e).__name__ + (":" + str(status) if status else ""))
+            if status in (401, 403, 429): circuit.set()
+            if isinstance(e, (requests.Timeout, requests.ConnectionError)) or status in (500, 502, 503, 504):
+                with failures_lock:
+                    transport_failures += 1
+                    if transport_failures >= 4: circuit.set()
+            elif not skipped:
+                with failures_lock: transport_failures = 0
+            error = "provider_circuit_open_after_transport_failures" if skipped else type(e).__name__ + (":" + str(status) if status else "")
+            d = store_history(path, None, error)
         h = d["history"]
         return {"id": sid, "kind": "fred", **meta, "path": "history/fred/" + sid + ".json" if h else None,
                 "start": h[0]["date"] if h else None, "end": h[-1]["date"] if h else None, "count": len(h), "source": "FRED",

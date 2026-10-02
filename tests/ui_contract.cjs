@@ -35,6 +35,13 @@ async function run(fixture=false,failFetch=false,demoResponse=false){
  }
  if(failFetch||demoResponse){assert(!w.document.querySelector('.demo-banner'),'silent demo fallback');assert.strictEqual(w.eval('DATA.tickers.length'),0,'unverified stocks must not appear')}
  if(!fixture&&!failFetch&&!demoResponse){
+  const archive=w.eval('HISTORY_CAL'),currentYear=w.eval("new Intl.DateTimeFormat('en',{timeZone:'America/New_York',year:'numeric'}).format(new Date())");
+  assert.equal(w.document.querySelector('#archiveYear').value,currentYear,'archive must prefer the current year over future schedules');
+  const archiveYears=archive.events.map(e=>e.date.slice(0,4)).sort();
+  assert(w.document.querySelector('#archiveSummary').textContent.includes(archiveYears.at(-1)),'schedule coverage must include the actual final year');
+  w.eval("$('#archiveYear').value='ALL';renderArchive()");
+  assert.equal(w.document.querySelectorAll('#archiveEvents .archive-row').length,archive.events.length,'All years must show every saved schedule');
+  w.eval('initArchiveControls()');
   const history=JSON.parse(fs.readFileSync(path.join(root,'history/fred/DGS10.json'))).history;
   w.eval("renderHistoryRows(HISTORY_CACHE.DGS10?.history||[],{unit:'%'})");
   w.eval(`renderHistoryRows(${JSON.stringify(history)},{unit:'%'})`);

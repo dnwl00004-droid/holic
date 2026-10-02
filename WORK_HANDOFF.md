@@ -23,6 +23,10 @@ was opened and verified after repository-owner authentication.
 - Market/futures collection runs in a bounded child process (300 seconds).
   Provider failures retain verified cached data and preserve separate macro
   collection. Data Health reports source errors, durations and cache ages.
+- Four consecutive FRED transport failures stop queued requests to that shared
+  endpoint for the current run. Successful responses reset the counter;
+  individual missing-series errors do not stop other series.
+  HTTP access/rate-limit responses stop queued calls immediately.
 - Derived futures spreads/ratios store their complete same-date history. Cached
   inputs produce a stale result. Spot prices remain distinct from futures;
   copper/gold quoted-price units are explicit.
@@ -32,7 +36,7 @@ was opened and verified after repository-owner authentication.
 
 ## Validation
 
-- 37 Python tests pass, including child timeout, failed-child restoration,
+- 41 Python tests pass, including child timeout, failed-child restoration,
   full derived histories, safe error reporting and separate archive timestamps.
 - JavaScript syntax and DOM contracts pass for 49 routes in four scenarios.
 - The data validator confirms 66 available histories and 335,000 observations,

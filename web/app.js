@@ -479,10 +479,17 @@ function drawFullHistory(hist,meta,overlay,overlayId){
  c.textAlign="left";c.fillStyle="#7ad7ff";c.fillText(hasOverlay?`${meta.id||meta.label} · indexed 100`:`${meta.label||"Series"}`,pL+8,pT+10);if(hasOverlay){c.fillStyle="#e9c85a";c.fillText(`${overlayId} · indexed 100`,pL+145,pT+10)}
 }
 function initArchiveControls(){
- let years=[...new Set((HISTORY_CAL?.events||[]).map(e=>e.date?.slice(0,4)).filter(Boolean))].sort().reverse();$("#archiveYear").innerHTML='<option value="ALL">All years</option>'+years.map(y=>`<option>${y}</option>`).join("");if(years.length)$("#archiveYear").value=years[0];$("#archiveYear").onchange=renderArchive;$("#archiveSearch").oninput=renderArchive;renderArchive();
+ const years=[...new Set((HISTORY_CAL?.events||[]).map(e=>e.date?.slice(0,4)).filter(Boolean))].sort().reverse(),currentYear=new Intl.DateTimeFormat('en',{timeZone:'America/New_York',year:'numeric'}).format(new Date());
+ $('#archiveYear').innerHTML='<option value="ALL">All years</option>'+years.map(y=>`<option>${y}</option>`).join('');
+ $('#archiveYear').value=years.find(y=>y<=currentYear)||'ALL';$('#archiveYear').onchange=renderArchive;$('#archiveSearch').oninput=renderArchive;renderArchive();
 }
 function renderArchive(){
- if(!$("#archiveEvents"))return;let year=$("#archiveYear")?.value||"ALL",q=($("#archiveSearch")?.value||"").toLowerCase();let rows=(HISTORY_CAL?.events||[]).filter(e=>(year==="ALL"||e.date?.startsWith(year))&&(!q||(e.title||"").toLowerCase().includes(q)||(e.source||"").toLowerCase().includes(q))).sort((a,b)=>(b.date||"").localeCompare(a.date||""));$("#archiveCount").textContent=`${rows.length} events`;$("#archiveSummary").textContent=`Archive ${HISTORY_CAL?.start_year||""}–${HISTORY_CAL?.end_year||""}`;$("#archiveEvents").innerHTML=rows.slice(0,250).map(e=>`<div class="archive-row"><b>${e.date}</b><span class="impact ${e.importance||"LOW"}">${e.importance||""}</span><div><b>${e.title||""}</b><small>${e.time_et||""} ${e.time_et?"ET":""}</small></div><small>${e.source||""}</small></div>`).join("")||'<div class="fine">No archived events match.</div>';
+ if(!$('#archiveEvents'))return;
+ const year=$('#archiveYear')?.value||'ALL',q=($('#archiveSearch')?.value||'').toLowerCase(),events=HISTORY_CAL?.events||[],years=events.map(e=>e.date?.slice(0,4)).filter(Boolean).sort();
+ const rows=events.filter(e=>(year==='ALL'||e.date?.startsWith(year))&&(!q||(e.title||'').toLowerCase().includes(q)||(e.source||'').toLowerCase().includes(q))).sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+ $('#archiveCount').textContent=`${rows.length} events`;
+ $('#archiveSummary').textContent=years.length?`Official schedules ${years[0]}–${years.at(-1)}`:'No verified schedules available';
+ $('#archiveEvents').innerHTML=rows.map(e=>`<div class="archive-row"><b>${esc(e.date)}</b><span class="impact ${esc(e.importance||'LOW')}">${esc(e.importance||'')}</span><div><b>${esc(e.title||'')}</b><small>${esc(e.time_et||'')} ${e.time_et?'ET':''}</small></div><small>${esc(e.source||'')}</small></div>`).join('')||'<div class="fine">No schedules match.</div>';
 }
 async function openHistorySeries(id){
  activate("historyexplorer");if(!HISTORY_INDEX)await initHistoryExplorer();let item=historyItems().find(x=>x.id===id);if(!item)return;$("#historyKind").value=item.kind;populateHistorySeries(id);$("#historySeries").value=id;await loadHistorySelected();
