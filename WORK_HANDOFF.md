@@ -14,6 +14,8 @@ contained only a README. Data remains genuine: 58 FRED series, eight EIA series,
 - Refresh continues on weekdays at 22:30 UTC, preserves last verified data,
   and triggers publishing only after a successful refresh.
 - No paid API or OpenAI call is required by either default workflow.
+- Calendar countdowns and risk counts recalculate from the current Eastern
+  date/time. Released events leave the upcoming list; Today shows ET and KST.
 
 ## Verified locally
 
@@ -22,7 +24,11 @@ contained only a README. Data remains genuine: 58 FRED series, eight EIA series,
 - Published data: 66 histories, 335,000 observations, no duplicate HTML IDs.
 - A fresh SPY request with yfinance 1.7.0 still returned a rate-limit error.
   Stocks and unavailable futures therefore remain N/A.
-- Local Chromium download was blocked; actual browser checks run in Actions.
+- Real Chromium in Actions: 49 routes at both desktop and mobile widths passed,
+  full DGS10 history loaded (16,171 rows), zero JavaScript errors, and no
+  page-wide overflow in History. Screenshots were inspected for Today, Rates
+  and History.
+- Initial deploy failed at Configure Pages because Pages has not been enabled.
 
 ## Deployment activation
 

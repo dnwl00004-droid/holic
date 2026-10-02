@@ -382,12 +382,24 @@ function initCalendar(){
  $$(".calendar-filters .recipe").forEach(b=>b.onclick=()=>{CAL_FILTER=b.dataset.cal; $$(".calendar-filters .recipe").forEach(x=>x.classList.toggle("active",x===b));renderCalendar()});
  renderCalendar();
 }
+function currentCalendar(calendar,clock=new Date()){
+ const parts=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(clock);
+ const part=type=>parts.find(p=>p.type===type).value;
+ const today=Date.UTC(+part('year'),+part('month')-1,+part('day'));
+ const events=(calendar.events||[]).map(e=>({...e,days_from_today:Math.round((Date.parse(e.date+'T00:00:00Z')-today)/86400000),has_passed:e.datetime_utc?Date.parse(e.datetime_utc)<=clock.getTime():false}));
+ const upcoming=events.filter(e=>e.days_from_today>=0&&!e.has_passed);
+ const available=events.length>0||(calendar.providers||[]).some(p=>p.status==='ok'||p.status==='stale');
+ return {...calendar,events,high_impact_next_7d:available?upcoming.filter(e=>e.importance==='HIGH'&&e.days_from_today<=7).length:null,high_impact_next_30d:available?upcoming.filter(e=>e.importance==='HIGH'&&e.days_from_today<=30).length:null};
+}
+function eventTimeLabel(e){
+ return (e.time_et?e.time_et+' ET':'Date only (ET)')+(e.datetime_kst?' · '+e.datetime_kst.slice(0,10)+' '+e.datetime_kst.slice(11,16)+' KST':'');
+}
 function renderCalendar(){
- let c=DATA.macro_v9?.calendar||{},events=c.events||[];
+ let c=currentCalendar(DATA.macro_v9?.calendar||{}),events=c.events||[];
  $("#calendarRisk").innerHTML=`<div class="calendar-risk"><small>HIGH IMPACT</small><b>${c.high_impact_next_7d??0}</b><small>next 7D · ${c.high_impact_next_30d??0} next 30D</small></div>`;
  let rows=events.filter(e=>CAL_FILTER==="ALL"||(CAL_FILTER==="HIGH"?e.importance==="HIGH":e.category===CAL_FILTER));
- $("#eventCalendar").innerHTML=rows.map(e=>{let dd=e.days_from_today===0?"TODAY":e.days_from_today>0?`D-${e.days_from_today}`:`D+${Math.abs(e.days_from_today)}`;return `<div class="event-row"><div class="event-date"><b>${e.date.slice(5)}</b><small>${e.time_et||"date only"} ET</small></div><span class="impact ${e.importance}">${e.importance}</span><span class="event-category fine">${e.category}</span><div class="event-title"><b>${esc(e.title)}</b><small>${e.notes||""}</small></div><span class="event-source">${esc(e.source)}<br><span class="d-day ${e.days_from_today===0?"today":""}">${dd}</span></span></div>`}).join("")||'<div class="fine">No matching upcoming events.</div>';
- let week=events.filter(e=>e.days_from_today>=0&&e.days_from_today<=7);$("#nextWeekEvents").innerHTML=week.map(e=>`<div class="week-event"><span class="d-day ${e.days_from_today===0?"today":""}">${e.days_from_today===0?"TODAY":"D-"+e.days_from_today}</span><div><b>${esc(e.title)}</b><small>${e.date} · ${e.time_et||"date only"} ET · ${esc(e.source)}</small></div></div>`).join("")||'<div class="fine">No events in the next 7 days.</div>';
+ $("#eventCalendar").innerHTML=rows.map(e=>{let dd=e.days_from_today===0?"TODAY":e.days_from_today>0?`D-${e.days_from_today}`:`D+${Math.abs(e.days_from_today)}`;return `<div class="event-row"><div class="event-date"><b>${e.date.slice(5)}</b><small>${esc(eventTimeLabel(e))}</small></div><span class="impact ${e.importance}">${e.importance}</span><span class="event-category fine">${e.category}</span><div class="event-title"><b>${esc(e.title)}</b><small>${e.notes||""}</small></div><span class="event-source">${esc(e.source)}<br><span class="d-day ${e.days_from_today===0?"today":""}">${dd}${e.has_passed?' · passed':''}</span></span></div>`}).join("")||'<div class="fine">No matching upcoming events.</div>';
+ let week=events.filter(e=>e.days_from_today>=0&&e.days_from_today<=7&&!e.has_passed);$("#nextWeekEvents").innerHTML=week.map(e=>`<div class="week-event"><span class="d-day ${e.days_from_today===0?"today":""}">${e.days_from_today===0?"TODAY":"D-"+e.days_from_today}</span><div><b>${esc(e.title)}</b><small>${e.date} · ${esc(eventTimeLabel(e))} · ${esc(e.source)}</small></div></div>`).join("")||'<div class="fine">No events in the next 7 days.</div>';
 }
 
 
@@ -502,11 +514,11 @@ function renderGroups(){
 }
 
 function renderToday(){
- let m=DATA.market||{},q=m.quality||{},b=m.breadth||{},mac=DATA.macro_v8?.regime||{},cal=DATA.macro_v9?.calendar||{};
+ let m=DATA.market||{},q=m.quality||{},b=m.breadth||{},mac=DATA.macro_v8?.regime||{},cal=currentCalendar(DATA.macro_v9?.calendar||{});
  let hero=[["MARKET REGIME",m.regime||"—",`${q.state||""} · quality ${q.score??"—"}`,'primary'],["MACRO REGIME",mac.regime||"—",`risk ${mac.macro_risk_score??"—"} · ${mac.risk_state||""}`],["BREADTH",b.above_200==null?"—":b.above_200+"%",`${b.advance_pct??"—"}% advancing`],["CREDIT",DATA.macro_v8?.fred?.BAMLH0A0HYM2?.value==null?"—":DATA.macro_v8.fred.BAMLH0A0HYM2.value+"% HY OAS",`credit axis ${mac.axes?.credit??"—"}`],["EVENT RISK",`${cal.high_impact_next_7d??"N/A"} high`,`${cal.high_impact_next_30d??"N/A"} in 30D`]];
  $("#todayHero").innerHTML=hero.map(([k,v,s,c])=>`<div class="today-hero-card ${c||""}"><small>${k}</small><b>${v}</b><div class="sub">${s}</div></div>`).join("");
- let events=(cal.events||[]).filter(e=>(e.days_from_today??999)>=0).sort((a,b)=>(a.days_from_today??999)-(b.days_from_today??999)).slice(0,7);
- $("#todayEvents").innerHTML=events.map(e=>`<div class="today-item"><div><b>${e.days_from_today===0?'TODAY':'D-'+e.days_from_today}</b><small>${e.date}</small></div><div><b>${esc(e.title)}</b><small>${e.time_et||''} ${e.category||''}</small></div><span class="impact ${e.importance||'LOW'}">${e.importance||''}</span></div>`).join("")||'<div class="fine">No upcoming events loaded.</div>';
+ let events=(cal.events||[]).filter(e=>(e.days_from_today??999)>=0&&!e.has_passed).sort((a,b)=>(a.days_from_today??999)-(b.days_from_today??999)).slice(0,7);
+ $("#todayEvents").innerHTML=events.map(e=>`<div class="today-item"><div><b>${e.days_from_today===0?'TODAY':'D-'+e.days_from_today}</b><small>${e.date}</small></div><div><b>${esc(e.title)}</b><small>${esc(eventTimeLabel(e))} · ${esc(e.source||'')}</small></div><span class="impact ${e.importance||'LOW'}">${e.importance||''}</span></div>`).join("")||'<div class="fine">No upcoming events loaded.</div>';
  let changes=DATA.today_changes||[];
  $("#changesList").innerHTML=changes.length?changes.slice(0,10).map(x=>`<div class="change-row"><b>${esc(x.ticker)}</b><div class="change-pills">${x.changes.map(c=>`<span class="pill">${c}</span>`).join("")}</div></div>`).join(""):`<div class="fine">No prior snapshot yet. Changes appear after the next daily build.</div>`;
  let sig=DATA.tickers.filter(x=>x.entry?.label==='READY'||x.rs?.before_price||x.screeners?.flags?.vcp_ready).sort((a,b)=>(b.scores.entry??0)-(a.scores.entry??0)).slice(0,10);

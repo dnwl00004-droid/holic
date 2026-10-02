@@ -14,6 +14,13 @@ async function run(fixture=false,failFetch=false,demoResponse=false){
  w.HTMLCanvasElement.prototype.getContext=()=>new Proxy({},{get:()=>()=>{}});
  const source=w.document.createElement('script');source.textContent=fs.readFileSync(path.join(root,'app.js'),'utf8')+'\n'+fs.readFileSync(path.join(root,'terminal.js'),'utf8');w.document.body.append(source);
  await new Promise(r=>setTimeout(r,80));
+ const eventClock=w.eval("currentCalendar({events:[{date:'2026-10-02',datetime_utc:'2026-10-02T12:30:00Z',days_from_today:1,importance:'HIGH'}]},new Date('2026-10-02T07:00:00Z'))");
+ assert.equal(eventClock.events[0].days_from_today,0,'cached calendar countdown must use current ET date');
+ assert.equal(eventClock.high_impact_next_7d,1,'unreleased event must count');
+ const afterRelease=w.eval("currentCalendar({events:[{date:'2026-10-02',datetime_utc:'2026-10-02T12:30:00Z',days_from_today:1,importance:'HIGH'}]},new Date('2026-10-02T13:00:00Z'))");
+ assert.equal(afterRelease.high_impact_next_7d,0,'released event must leave upcoming risk');
+ const etMidnight=w.eval("currentCalendar({events:[{date:'2026-10-02',importance:'HIGH'}]},new Date('2026-10-02T02:00:00Z'))");
+ assert.equal(etMidnight.events[0].days_from_today,1,'countdown must respect ET, not UTC midnight');
  assert(w.document.querySelectorAll('.sidebar-nav button').length>=45,'navigation missing: '+errors.join(' | '));
  for(const b of w.document.querySelectorAll('.sidebar-nav button')){b.click();await new Promise(r=>setTimeout(r,5));assert(w.document.querySelectorAll('.view.active').length===1,'incorrect active view');assert(w.document.getElementById(b.dataset.tab),'missing view '+b.dataset.tab)}
  if(fixture){
