@@ -101,6 +101,14 @@ function stockTable(rows,keys){const cols=COLUMNS.filter(c=>keys.includes(c[0]))
 function bindStockRows(el){el.querySelectorAll('[data-stock]').forEach(b=>b.onclick=()=>openQuick(b.dataset.stock))}
 function renderFreshnessPro(){const m=DATA.meta||{},completed=m.last_refresh_completed||m.generated_at;$('#dataFreshness').innerHTML=`<b>${m.status==='ok'?'VERIFIED SNAPSHOT':m.status==='unavailable'?'UNAVAILABLE':'PARTIAL DATA'}</b><br>Stocks ${esc(m.as_of||'N/A')} · build ${esc((completed||'N/A').slice(0,16))} UTC`;$('#liveBanner').textContent=m.load_error?'Data could not be loaded. Serve the web folder using the included launcher.':DATA.tickers.length?'End-of-day data. Check individual source dates and Data Health.':'Equity prices unavailable. Official macro data remains accessible; unavailable fields show N/A.';$('#liveBanner').className='live-banner '+(!DATA.tickers.length?'partial':'')}
 renderDataFreshness=renderFreshnessPro;
+const renderTodayOriginal=renderToday;
+renderToday=function(){
+ renderTodayOriginal();const box=$('#todayMacroPulse');if(!box)return;
+ const ids=['DGS2','DGS10','SOFR','CPILFESL','UNRATE','DTWEXBGS','DCOILWTICO','VIXCLS'];
+ box.innerHTML=ids.map(id=>{const v=DATA.macro_v8?.fred?.[id]||{},valid=typeof v.value==='number'&&Number.isFinite(v.value),meta=DATA.data_health?.series?.find(x=>x.id===id)||{};return `<button data-pulse-history="${id}" ${valid?'':'disabled'}><span>${esc(v.label||meta.label||id)}</span><b>${display(v.value)} <small>${esc(v.unit||meta.unit||'')}</small></b><small>As of ${esc(v.date||'N/A')} · FRED</small><small class="${v.status==='ok'?'pos':v.status==='stale'?'warn':'neg'}">${esc(v.status||'unavailable')}</small></button>`}).join('');
+ box.querySelectorAll('[data-pulse-history]').forEach(b=>b.onclick=()=>openHistorySeries(b.dataset.pulseHistory));
+ if(ids.some(id=>DATA.macro_v8?.fred?.[id]?.status==='stale'))$('#todayHero').children[1]?.querySelector('.sub')?.append(' · cached inputs');
+};
 function providerGroups(items){
  return [['FRED official histories','fred'],['U.S. EIA inventories','eia'],['Yahoo Finance / market and futures','commodity','market']].map(([source,...kinds])=>{
   const series=items.filter(x=>kinds.includes(x.kind)),available=series.filter(x=>x.count>0),ok=series.filter(x=>x.status==='ok');

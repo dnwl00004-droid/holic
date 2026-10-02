@@ -14,6 +14,8 @@ was opened and verified after repository-owner authentication.
   runs at 22:30 UTC (07:30 KST the next day) and publishes only after validation.
 - Calendar countdowns use the current Eastern date and release time. Today and
   Calendar show ET and KST, including the Korean date when it changes.
+- Today includes eight official Macro Pulse indicators with observation dates,
+  source status and direct full-history links. Cached regime inputs are labeled.
 - Full history stays available through 200-row pages, page jumps and CSV export
   of every observation in the selected range. Chart comparisons align dates.
 - Failed history loads clear the previous value/chart instead of showing a
