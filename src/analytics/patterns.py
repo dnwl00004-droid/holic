@@ -5,14 +5,16 @@ import pandas as pd
 
 def _pivots(series: pd.Series, order: int = 5):
     a = series.to_numpy(dtype=float)
-    highs, lows = [], []
-    for i in range(order, len(a)-order):
-        w = a[i-order:i+order+1]
-        if a[i] == np.nanmax(w):
-            highs.append((i, a[i]))
-        if a[i] == np.nanmin(w):
-            lows.append((i, a[i]))
-    return highs, lows
+    width=2*order+1
+    if len(a)<width:
+        return [],[]
+    windows=np.lib.stride_tricks.sliding_window_view(a,width)
+    centers=a[order:len(a)-order] if order else a
+    # fmax/fmin preserve nanmax/nanmin semantics, including tied pivots.
+    # Reduce all windows together instead of rescanning Python slices in replay.
+    hi=np.flatnonzero(centers==np.fmax.reduce(windows,axis=1))+order
+    lo=np.flatnonzero(centers==np.fmin.reduce(windows,axis=1))+order
+    return [(int(i),a[i]) for i in hi],[(int(i),a[i]) for i in lo]
 
 def vcp_proxy(df: pd.DataFrame) -> dict:
     if len(df) < 80:

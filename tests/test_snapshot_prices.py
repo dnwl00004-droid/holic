@@ -10,6 +10,14 @@ def bars(close):
     return pd.DataFrame({"close":close,"open":close,"high":close*1.005,"low":close*0.995,"volume":[1000.0]*len(close)},index=pd.bdate_range("2024-01-02",periods=len(close)))
 
 
+def test_pivots_keep_ties_ignore_missing_neighbors_and_exclude_edges():
+    from src.analytics.patterns import _pivots
+    highs,lows=_pivots(pd.Series([9,1,3,3,1,np.nan,2,1,9]),1)
+    assert highs==[(2,3.0),(3,3.0),(6,2.0)]
+    assert lows==[(1,1.0),(4,1.0),(7,1.0)]
+    assert _pivots(pd.Series([1.0]*4),3)==([],[])
+
+
 def test_contracting_swings_use_high_peaks_and_low_troughs():
     values=np.interp(np.arange(130),[0,10,25,40,55,70,85,100,115,129],[90,100,70,105,84,108,97.2,107,102,106])
     result=vcp_proxy(bars(values))

@@ -88,6 +88,7 @@ const server = http.createServer((req, res) => {
       }
       if (name === 'mobile') await page.locator('#menuButton').click();
       await page.locator('.sidebar-nav button[data-tab="historyexplorer"]').click();
+      await page.locator('#historyKind').selectOption('fred');
       await page.locator('#historySeries').selectOption('DGS10');
       await page.waitForFunction(() => document.querySelector('#historyRows').children.length > 0);
       await page.locator('#historyRanges button[data-range="MAX"]').click();

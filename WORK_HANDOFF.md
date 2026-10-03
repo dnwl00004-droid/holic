@@ -49,7 +49,7 @@ was opened and verified after repository-owner authentication.
 
 ## Validation
 
-- 50 Python tests pass, including child timeout, failed-child restoration,
+- 51 Python tests pass, including child timeout, failed-child restoration,
   full derived histories, safe error reporting and separate archive timestamps.
 - JavaScript syntax and DOM contracts pass for 49 routes in four scenarios.
 - The data validator confirms 83 available histories and over 356,000 observations,
@@ -59,6 +59,9 @@ was opened and verified after repository-owner authentication.
   also exercise real-stock search, quote provenance, research charts, stock CSV
   export, commodity fund units and linked histories. Screenshot
   evidence is retained as the browser-evidence workflow artifact.
+- Pivot detection uses vectorized overlapping windows. A real 1,254-session
+  FIX backtest retained identical events and results while dropping from
+  13.93 seconds to 2.66 seconds, avoiding the 50-name refresh timeout.
 
 ## Data limitations
 
