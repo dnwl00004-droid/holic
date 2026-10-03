@@ -7,7 +7,7 @@ import numpy as np
 import requests
 
 from .providers.universe import load_sp500
-from .providers.yahoo import download_daily
+from .providers.prices import download_daily
 from .providers.sec import ticker_to_cik_map, cached_company_facts, quarterly_growth_snapshot
 from .analytics.rs import weighted_momentum, relative_line_change, percentile_1_99, quadrant
 from .analytics.trend import trend_template
@@ -58,7 +58,18 @@ def build(output_path="web/latest.json", signal_log_path="data/output/signal_log
     if spy is None or spy.empty:raise RuntimeError("SPY benchmark data unavailable")
     uni=load_sp500(); provider=uni["provider_ticker"].tolist()
     prices={"SPY":spy}
-    for i in range(0,len(provider),50):prices.update(download_daily(provider[i:i+50],period="3y"))
+    quote_errors={}
+    for i in range(0,len(provider),50):
+        batch=download_daily(provider[i:i+50],period="3y")
+        prices.update(batch);quote_errors.update(getattr(batch,"errors",{}))
+        print(f"[build] prices {min(i+50,len(provider))}/{len(provider)}; received {len(prices)-1}",flush=True)
+    # Rank the same observation session and adjustment basis as the benchmark.
+    aligned={}
+    for t,df in prices.items():
+        df=df.loc[df.index<=spy.index[-1]]
+        if not df.empty and df.index[-1]==spy.index[-1] and df.attrs.get("source")==spy.attrs.get("source"):
+            aligned[t]=df
+    prices=aligned
     if sum(t in prices and len(prices[t])>=260 for t in provider)<len(provider)*.90:
         raise RuntimeError("Less than 90% universe price coverage; retain previous snapshot")
 
@@ -99,7 +110,7 @@ def build(output_path="web/latest.json", signal_log_path="data/output/signal_log
 
         rec={
           "ticker":meta["ticker"],"provider_ticker":t,"company":meta["company"],"sector":meta["sector"],"industry":meta["industry"],
-          "price":{"close":round(close,4),"change_pct":round(chg,3),"as_of":str(df.index[-1].date()),"source":"Yahoo Finance / yfinance","method":"adjusted daily OHLCV",
+          "price":{"close":round(close,4),"change_pct":round(chg,3),"as_of":str(df.index[-1].date()),"source":df.attrs.get("source","Nasdaq historical quotes"),"source_url":df.attrs.get("source_url"),"method":df.attrs.get("method"),"status":df.attrs.get("status","unverified"),"last_success":df.attrs.get("fetched_at"),"error":df.attrs.get("error"),
                    "sma50":round(float(df["close"].rolling(50).mean().iloc[-1]),4),
                    "sma150":round(float(df["close"].rolling(150).mean().iloc[-1]),4),
                    "sma200":round(float(df["close"].rolling(200).mean().iloc[-1]),4)},
@@ -158,15 +169,19 @@ def build(output_path="web/latest.json", signal_log_path="data/output/signal_log
     return {
       "meta":{"schema_version":"4.0","generated_at":datetime.now(timezone.utc).isoformat(),"as_of":as_of,
               "universe":"S&P 500 prototype universe","universe_count":len(records),"demo":False,
+              "eligible_universe_count":len(provider),"price_coverage_pct":round(len(records)/len(provider)*100,2),
+              "excluded_price_symbols":[{"ticker":t,"reason":quote_errors.get(t,"insufficient_or_misaligned_history")} for t in provider if t not in prices or len(prices[t])<260],
+              "equity_status":"ok" if all(r["price"]["status"]=="ok" for r in records) else "stale",
               "fundamentals_enriched":bool(with_sec)},
-      "sources":{"price":{"provider":"Yahoo Finance","adapter":"yfinance","type":"adjusted daily OHLCV"},
+      "sources":{"price":{"provider":spy.attrs.get("source"),"adapter":"validated public Nasdaq quotes","type":spy.attrs.get("method"),"cash_dividends_included":False},
                  "fundamentals":{"provider":"SEC EDGAR CompanyFacts","enabled":bool(with_sec)},
-                 "benchmark":{"symbol":"SPY","provider":"Yahoo Finance"},
+                 "benchmark":{"symbol":"SPY","provider":spy.attrs.get("source"),"as_of":as_of},
                  "universe":{"provider":"Wikipedia S&P 500 table","use":"prototype constituent metadata"}},
       "methodology":{"rs_score":"40% 63d + 20% 126d + 20% 189d + 20% 252d, percentile-ranked",
                      "short_rs":"21d stock/SPY relative-line change, percentile-ranked",
                      "strength":"structural leadership","setup":"pattern/setup quality","entry":"current timing quality",
-                     "breadth":"cross-sectional OHLCV participation metrics"},
+                     "breadth":"cross-sectional same-session OHLCV participation metrics",
+                     "returns":"Price returns exclude cash dividends; source-reported split-adjusted history. Current-universe survivorship bias remains."},
       "market":{"regime":mregime,"quality":mquality,"breadth":breadth,
                 "distribution_count":dist.get("count"),"setup_count":sum(bool(x["patterns"]["primary"]) for x in records)},
       "market_history":mh,"groups":groups,"today_changes":changes,

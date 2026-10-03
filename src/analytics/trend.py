@@ -24,4 +24,5 @@ def trend_template(df: pd.DataFrame, rs_score: int | None, rs_floor: int = 70) -
         "within_25pct_52w_high": px >= high52 * 0.75,
         "rs_above_floor": (rs_score or 0) >= rs_floor,
     }
-    return {"passed": sum(bool(v) for v in checks.values()), "total": len(checks), "checks": checks}
+    checks={key:bool(value) for key,value in checks.items()}
+    return {"passed": sum(checks.values()), "total": len(checks), "checks": checks}

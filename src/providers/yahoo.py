@@ -2,9 +2,18 @@
 from __future__ import annotations
 import pandas as pd
 import yfinance as yf
+from datetime import datetime, timezone
 
 def download_daily(tickers: list[str], period: str = "3y") -> dict[str, pd.DataFrame]:
     """Download adjusted OHLCV in batches and normalize to per-ticker DataFrames."""
+    if not tickers: return {}
+    # One explicit failure ends this provider batch; do not hammer a 429 endpoint.
+    probe = yf.Ticker(tickers[0]).history(period=period, interval="1d", auto_adjust=True, repair=True, timeout=15, raise_errors=True)
+    if probe.empty: return {}
+    if len(tickers) == 1:
+        probe.columns = [str(c).lower().replace(" ", "_") for c in probe.columns]
+        probe.attrs.update(source="Yahoo Finance",source_url="https://finance.yahoo.com/quote/"+tickers[0],method="Yahoo adjusted daily OHLCV",status="ok",fetched_at=datetime.now(timezone.utc).isoformat())
+        return {tickers[0]:probe.dropna(subset=["close"])}
     raw = yf.download(
         tickers=tickers,
         period=period,
@@ -34,6 +43,7 @@ def download_daily(tickers: list[str], period: str = "3y") -> dict[str, pd.DataF
             df = df.dropna(subset=["close"]).sort_index()
             df=df[~df.index.duplicated(keep="last")]
             if not df.empty:
+                df.attrs.update(source="Yahoo Finance",source_url="https://finance.yahoo.com/quote/"+t,method="Yahoo adjusted daily OHLCV",status="ok",fetched_at=datetime.now(timezone.utc).isoformat())
                 result[t] = df
         except Exception:
             continue

@@ -2,7 +2,7 @@
 from __future__ import annotations
 import argparse,json
 from pathlib import Path
-import yfinance as yf
+from src.providers.prices import download_daily
 
 from src.providers.yahoo_estimates import estimate_snapshot
 from src.analytics.valuation_v6 import reverse_dcf_implied_growth, dcf_sensitivity
@@ -14,6 +14,7 @@ def main():
     ap.add_argument("--snapshot",default="web/latest.json")
     ap.add_argument("--top",type=int,default=80)
     ap.add_argument("--with-replay",action="store_true")
+    ap.add_argument("--with-estimates",action="store_true")
     a=ap.parse_args()
     p=Path(a.snapshot);snap=json.loads(p.read_text(encoding="utf-8"))
     top=snap["tickers"][:a.top]
@@ -21,19 +22,13 @@ def main():
     spy=None
     price_map={}
     if a.with_replay:
-        raw=yf.download(symbols+["SPY"],period="3y",interval="1d",auto_adjust=True,repair=True,group_by="ticker",threads=True,progress=False)
-        for t in symbols+["SPY"]:
-            try:
-                d=raw[t].copy()
-                d.columns=[str(c).lower() for c in d.columns]
-                price_map[t]=d.dropna(how="all")
-            except Exception:pass
+        price_map=download_daily(symbols+["SPY"],period="3y")
         spy=price_map.get("SPY")
 
     for rec in top:
         rec.setdefault("v6",{})
         t=rec.get("provider_ticker") or rec["ticker"]
-        try: est=estimate_snapshot(t)
+        try: est=estimate_snapshot(t) if a.with_estimates else {"status":"unavailable","error":"analyst_estimate_feed_not_connected"}
         except Exception as e: est={"error":type(e).__name__}
         rec["v6"]["estimates"]=est
 
@@ -56,9 +51,9 @@ def main():
 
     snap["meta"]["schema_version"]="6.0"
     snap["meta"]["v6_enriched_top_n"]=len(top)
-    snap["sources"]["estimates"]={"provider":"Yahoo Finance via yfinance","fields":"EPS trend/revisions, earnings history, market cap"}
+    snap["sources"]["estimates"]={"provider":"Yahoo Finance via yfinance","enabled":a.with_estimates,"status":"unavailable" if not a.with_estimates else "attempted","fields":"EPS trend/revisions, earnings history, market cap"}
     snap["sources"]["valuation"]={"engine":"reverse_dcf_constant_margin_v1","note":"Model output, not vendor data"}
-    snap["sources"]["replay"]={"engine":"price_only_replay_v1","caveat":"current-universe survivorship bias"}
+    snap["sources"]["replay"]={"engine":"price_only_replay_v1","provider":"Nasdaq historical quotes","caveat":"Price returns exclude cash dividends; current-universe survivorship bias"}
     p.write_text(json.dumps(snap,ensure_ascii=False,separators=(",",":")),encoding="utf-8")
     print(f"v6 enrichment complete for {len(top)} names")
 if __name__=="__main__":main()

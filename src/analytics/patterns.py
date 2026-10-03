@@ -21,7 +21,8 @@ def vcp_proxy(df: pd.DataFrame) -> dict:
     low = df["low"].dropna()
     common = high.index.intersection(low.index)
     high, low = high.loc[common], low.loc[common]
-    hs, ls = _pivots(high, 4), _pivots(low, 4)
+    hs, _ = _pivots(high, 4)
+    _, ls = _pivots(low, 4)
     swings = sorted([(i, "H", v) for i, v in hs] + [(i, "L", v) for i, v in ls])
     contractions = []
     for n in range(len(swings)-1):

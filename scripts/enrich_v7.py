@@ -2,7 +2,7 @@
 from __future__ import annotations
 import argparse,json
 from pathlib import Path
-import yfinance as yf
+from src.providers.prices import download_daily
 
 from src.analytics.ranking_v7 import assign_cross_sectional_ranks
 from src.analytics.signal_backtest_v7 import backtest_signals, aggregate_signal_results
@@ -28,12 +28,7 @@ def main():
     if a.with_signal_backtest:
         names=snap["tickers"][:a.backtest_top]
         symbols=[x.get("provider_ticker") or x["ticker"] for x in names]
-        raw=yf.download(symbols+["SPY"],period="8y",interval="1d",auto_adjust=True,repair=True,group_by="ticker",threads=True,progress=False)
-        price={}
-        for t in symbols+["SPY"]:
-            try:
-                d=raw[t].copy();d.columns=[str(c).lower() for c in d.columns];price[t]=d.dropna(how="all")
-            except Exception:pass
+        price=download_daily(symbols+["SPY"],period="5y")
         bm=price.get("SPY")
         per={}
         if bm is not None:
@@ -72,7 +67,7 @@ def main():
     snap["meta"]["schema_version"]="7.0"
     snap["meta"]["v7_ranked_names"]=len(snap["revision_rankings"])
     snap["sources"]["v7_rankings"]={"engine":"revision_score_v1 + catalyst_score_v1","note":"Transparent composite of source metrics"}
-    snap["sources"]["signal_backtests"]={"engine":"signal_backtest_v1","note":"Price/volume signals only; current-universe survivorship bias remains"}
+    snap["sources"]["signal_backtests"]={"engine":"signal_backtest_v1","provider":"Nasdaq historical quotes","requested_years":5,"note":"Price/volume signals only; cash dividends excluded; actual coverage depends on listing date; current-universe survivorship bias remains"}
     p.write_text(json.dumps(snap,ensure_ascii=False,separators=(",",":")),encoding="utf-8")
     print("v7 enrichment complete")
 if __name__=="__main__":main()

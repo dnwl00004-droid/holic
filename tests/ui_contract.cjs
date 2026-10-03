@@ -23,6 +23,10 @@ async function run(fixture=false,failFetch=false,demoResponse=false){
  assert.equal(etMidnight.events[0].days_from_today,1,'countdown must respect ET, not UTC midnight');
  const aligned=w.eval("alignHistoryComparison([{date:'2025-01-01',value:10},{date:'2025-01-02',value:11}],[{date:'2025-01-02',value:100},{date:'2025-01-03',value:120}])");
  assert.equal(aligned.primary.length,1,'comparison must use shared dates');assert.equal(aligned.primary[0].date,aligned.overlay[0].date,'comparison baselines must align');
+ w.eval("window.savedMacro=DATA.macro_v8;DATA.macro_v8={fred:{SOFR:{value:3.88,date:'2026-09-29',status:'stale',error:'ReadTimeout'}},nyfed:{SOFR:{value:3.87,date:'2026-10-01',status:'ok',source:'Federal Reserve Bank of New York'}}}");
+ const pulse=w.eval("macroPulseValue('SOFR')");assert.equal(pulse.value,3.87,'latest official reference rate must replace older pulse value');assert.equal(pulse.display_source,'NY Fed');assert.equal(pulse.error,null,'a current source must not inherit another source error');
+ w.eval('DATA.macro_v8=window.savedMacro');
+ assert.equal(w.eval("kstTime('2026-10-02T23:30:00Z')"),'2026-10-03 08:30 KST','build time must use Korea date');
  assert(w.document.querySelectorAll('.sidebar-nav button').length>=45,'navigation missing: '+errors.join(' | '));
  for(const b of w.document.querySelectorAll('.sidebar-nav button')){b.click();await new Promise(r=>setTimeout(r,5));assert(w.document.querySelectorAll('.view.active').length===1,'incorrect active view');assert(w.document.getElementById(b.dataset.tab),'missing view '+b.dataset.tab)}
  if(fixture){

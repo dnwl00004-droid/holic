@@ -5,9 +5,25 @@ from pathlib import Path
 import pandas as pd
 from .commodities_v9 import COMMODITIES
 from .history_v10 import MARKET_TICKERS
-from .yahoo import download_daily
+from .prices import download_daily
 from ..reliability import store_history, atomic_json
 
+COMMODITY_ETFS = {
+    "USO":{"label":"US Oil Fund", "category":"Energy", "unit":"$/share"},
+    "BNO":{"label":"US Brent Oil Fund", "category":"Energy", "unit":"$/share"},
+    "UNG":{"label":"US Natural Gas Fund", "category":"Energy", "unit":"$/share"},
+    "GLD":{"label":"SPDR Gold Shares", "category":"Metals", "unit":"$/share"},
+    "SLV":{"label":"iShares Silver Trust", "category":"Metals", "unit":"$/share"},
+    "CPER":{"label":"US Copper Index Fund", "category":"Metals", "unit":"$/share"},
+    "PPLT":{"label":"abrdn Physical Platinum Shares", "category":"Metals", "unit":"$/share"},
+    "PALL":{"label":"abrdn Physical Palladium Shares", "category":"Metals", "unit":"$/share"},
+    "DBA":{"label":"Invesco DB Agriculture Fund", "category":"Agriculture", "unit":"$/share"},
+    "CORN":{"label":"Teucrium Corn Fund", "category":"Agriculture", "unit":"$/share"},
+    "WEAT":{"label":"Teucrium Wheat Fund", "category":"Agriculture", "unit":"$/share"},
+    "SOYB":{"label":"Teucrium Soybean Fund", "category":"Agriculture", "unit":"$/share"},
+    "COPX":{"label":"Global X Copper Miners ETF", "category":"Metals", "unit":"$/share"},
+    "URA":{"label":"Global X Uranium ETF", "category":"Metals", "unit":"$/share"},
+}
 
 def summarize(history):
     """Trading-session returns and risk metrics; absent lookbacks stay null."""
@@ -35,13 +51,14 @@ def summarize(history):
 def collect_assets(root, fetch=download_daily):
     root = Path(root)
     registry = {**{k:{**v,"kind":"commodity"} for k,v in COMMODITIES.items()},
-                **{k:{**v,"kind":"market"} for k,v in MARKET_TICKERS.items()}}
+                **{k:{**v,"kind":"market"} for k,v in MARKET_TICKERS.items()},
+                **{k:{**v,"kind":"market","instrument":"commodity_etf"} for k,v in COMMODITY_ETFS.items()}}
     try:
         frames = fetch(list(registry), period="max")
         fetch_error = None
     except Exception as e:
         frames = {}; fetch_error = type(e).__name__
-    items = []; contracts = {}; market = {}; full_histories = {}; source_items = {}
+    items = []; contracts = {}; market = {}; etfs = {}; full_histories = {}; source_items = {}
     for sid, meta in registry.items():
         folder = "commodities" if meta["kind"] == "commodity" else "market"
         name = sid.replace("=","_").replace("^","_").replace("-","_") + ".json"
@@ -51,23 +68,27 @@ def collect_assets(root, fetch=download_daily):
             if frame is not None and not frame.empty:
                 close = frame["close"].dropna()
                 history = [{"date":str(dt.date()),"value":float(v)} for dt,v in close.items()]
-                payload = {"id":sid,"kind":meta["kind"],"meta":meta,"source":"Yahoo Finance via yfinance",
-                           "source_url":"https://finance.yahoo.com/quote/"+sid,"history":history,
-                           "method":"daily adjusted close; trading-session lookbacks",
-                           "caveat":"Front-month futures have contract-roll effects." if meta["kind"]=="commodity" else "Adjusted historical prices."}
+                payload = {"id":sid,"kind":meta["kind"],"meta":meta,"source":frame.attrs.get("source","Yahoo Finance"),
+                           "source_url":frame.attrs.get("source_url","https://finance.yahoo.com/quote/"+sid),"history":history,
+                           "method":frame.attrs.get("method","daily adjusted close; trading-session lookbacks"),
+                           "caveat":"Commodity-linked ETF share prices include fund expenses and tracking differences; they are not futures or spot prices." if meta.get("instrument")=="commodity_etf" else "Front-month futures have contract-roll effects." if meta["kind"]=="commodity" else "Price returns exclude cash dividends for Nasdaq quotes."}
         except (KeyError,TypeError,ValueError): pass
-        data = store_history(path,payload,fetch_error or "provider_returned_no_valid_observations")
+        data = store_history(path,payload,fetch_error or getattr(frames,"errors",{}).get(sid) or "provider_returned_no_valid_observations")
+        if payload and frame.attrs.get("status")=="stale" and data["status"]=="ok":
+            data.update(status="stale",last_success=frame.attrs.get("fetched_at"),error=frame.attrs.get("error"))
+            atomic_json(path,data)
         history = data["history"]
-        item = {"id":sid,**meta,"source":"Yahoo Finance", "path":f"history/{folder}/{name}" if history else None,
+        item = {"id":sid,**meta,"source":data.get("source","Nasdaq historical quotes" if sid in COMMODITY_ETFS or sid in ("SPY","TLT","HYG") else "Yahoo Finance"), "path":f"history/{folder}/{name}" if history else None,
                 "count":len(history),"start":history[0]["date"] if history else None,"end":history[-1]["date"] if history else None,
                 "status":data["status"],"last_attempt":data.get("last_attempt"),"last_success":data.get("last_success"),"error":data.get("error"),
-                "method":"daily adjusted close; trading-session lookbacks","refresh_frequency":"daily after US close"}
+                "method":data.get("method","daily adjusted close; trading-session lookbacks"),"refresh_frequency":"daily after US close"}
         items.append(item)
         full_histories[sid] = history
         source_items[sid] = item
         value = {**meta,**summarize(history),"source":item["source"],"source_url":payload["source_url"] if payload else data.get("source_url"),
                  "status":item["status"],"last_update":item["last_success"],"error":item["error"],"method":item["method"]}
         (contracts if meta["kind"]=="commodity" else market)[sid] = value
+        if meta.get("instrument")=="commodity_etf": etfs[sid]=value
     available = [x for x in contracts.values() if x["value"] is not None]
     above = [x for x in available if x.get("above_50dma") is not None]
     positive = [x for x in available if x.get("return_1m_pct") is not None]
@@ -93,7 +114,7 @@ def collect_assets(root, fetch=download_daily):
         derived[key] = {"label":label,"unit":unit,"date":last["date"] if last else None,
                         "value":last["value"] if last else None,"status":data["status"],
                         "method":"same-date futures "+mode}
-    return items, {"contracts":contracts,"derived":derived,"breadth":breadth}, market
+    return items, {"contracts":contracts,"etfs":etfs,"derived":derived,"breadth":breadth}, market
 
 
 if __name__ == "__main__":

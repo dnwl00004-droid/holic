@@ -48,7 +48,7 @@ def test_failed_child_restores_snapshot_and_still_completes_macro_refresh(tmp_pa
     original = blank_snapshot()
     original["meta"].update(as_of="2026-09-30", generated_at="2026-10-01T08:00:00Z")
     original["tickers"] = [{"ticker": "TEST", "price": {"close": 100.0}}]
-    original["data_health"] = {"providers": [{"source": "Yahoo Finance / equity universe", "last_success": "2026-10-01T08:00:00Z"}]}
+    original["data_health"] = {"providers": [{"source": "Nasdaq / equity universe", "last_success": "2026-10-01T08:00:00Z"}]}
     atomic_json(tmp_path / "latest.json", original)
 
     def failed(label, command, **kwargs):

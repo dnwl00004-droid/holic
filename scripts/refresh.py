@@ -32,16 +32,18 @@ def refresh(web="web", macro_only=False, extended=False, selected=None):
             try:
                 duration = run_provider_job(label, command, cwd=ROOT, timeout=timeout)
                 after = read_json(candidate); validate_snapshot(after)
-                if label == "Yahoo Finance / equity universe":
+                if label == "Nasdaq / equity universe":
                     for key in ("macro_v8","macro_v9","data_health","history_v10","signal_backtests","revision_rankings","stress_library"):
                         if key not in after and key in before: after[key] = before[key]
                     after["sources"] = {**before.get("sources",{}),**after.get("sources",{})}
                     atomic_json(candidate,after)
-                health.append({"source": label, "status": "ok", "last_attempt": stage_attempt, "last_success": now(), "duration_seconds": duration, "error": None})
+                equity_status=after.get("meta",{}).get("equity_status","ok") if label=="Nasdaq / equity universe" else "ok"
+                successes=[r.get("price",{}).get("last_success") for r in after.get("tickers",[]) if r.get("price",{}).get("last_success")]
+                health.append({"source": label, "status": equity_status, "last_attempt": stage_attempt, "last_success": min(successes) if label=="Nasdaq / equity universe" and successes else now(), "duration_seconds": duration, "error": "retained_quote_cache" if equity_status=="stale" else None})
                 return True
             except Exception as e:
                 atomic_json(candidate, before)
-                prior_health=next((p for p in previous.get("data_health",{}).get("providers",[]) if p.get("source")==label),{})
+                prior_health=next((p for p in previous.get("data_health",{}).get("providers",[]) if p.get("source")==label or label=="Nasdaq / equity universe" and p.get("source")=="Yahoo Finance / equity universe"),{})
                 error = type(e).__name__ + ":" + str(e)[:80]
                 print(f"[refresh] {label}: retained verified cache ({error})", flush=True)
                 health.append({"source": label, "status": "stale" if before.get("tickers") else "unavailable", "last_attempt": stage_attempt, "last_success": prior_health.get("last_success"), "duration_seconds": round(time.monotonic()-stage_started, 2), "error": error})
@@ -50,15 +52,15 @@ def refresh(web="web", macro_only=False, extended=False, selected=None):
         if not macro_only:
             args = ["-m", "src.build_snapshot", "--output", str(candidate), "--signal-log", str(signal_log)]
             if os.environ.get("SEC_USER_AGENT"): args.append("--with-sec")
-            stocks_ok = stage("Yahoo Finance / equity universe", args, 600)
+            stocks_ok = stage("Nasdaq / equity universe", args, 900)
             if stocks_ok and extended:
                 if os.environ.get("SEC_USER_AGENT"):
                     stage("SEC / FINRA", ["-m", "scripts.enrich_v5", "--snapshot", str(candidate), "--with-finra", "--top", "80"], 1200)
-                stage("Yahoo estimates / replay", ["-m", "scripts.enrich_v6", "--snapshot", str(candidate), "--with-replay", "--top", "80"], 600)
+                stage("Price replay", ["-m", "scripts.enrich_v6", "--snapshot", str(candidate), "--with-replay", "--top", "80"], 240)
                 stage("Signal backtests", ["-m", "scripts.enrich_v7", "--snapshot", str(candidate), "--with-signal-backtest", "--with-stress-library", "--backtest-top", "50"], 600)
         else:
-            prior=next((p for p in previous.get("data_health",{}).get("providers",[]) if p.get("source") in ("Yahoo Finance / equity universe","Yahoo Finance / equities")),{})
-            health.append({"source":"Yahoo Finance / equity universe","status":"stale" if snap.get("tickers") else "unavailable","last_success":None,"last_attempt":None,"error":"not yet collected",**prior,"refresh_note":"Skipped in macro-only run"})
+            prior=next((p for p in previous.get("data_health",{}).get("providers",[]) if p.get("source") in ("Nasdaq / equity universe","Yahoo Finance / equity universe","Yahoo Finance / equities")),{})
+            health.append({"source":"Nasdaq / equity universe","status":"stale" if snap.get("tickers") else "unavailable","last_success":None,"last_attempt":None,"error":"not yet collected",**prior,"refresh_note":"Skipped in macro-only run"})
         snap = read_json(candidate)
         fred_started = time.monotonic()
         print("[refresh] FRED official histories: started", flush=True)
@@ -92,6 +94,7 @@ def refresh(web="web", macro_only=False, extended=False, selected=None):
             val=ny.get(k,{})
             if val.get("value") is None and fred.get(k,{}).get("value") is not None:
                 ny[k]={**fred[k],"source":"FRED reference-rate series","upstream_error":val.get("error")}
+        health.append(history_provider_health("NY Fed reference rates",[{"count":1 if ny.get(k,{}).get("value") is not None else 0,**ny.get(k,{})} for k in ("SOFR","EFFR")]))
         sofr,effr=ny.get("SOFR",{}),ny.get("EFFR",{})
         if sofr.get("date") and sofr.get("date")==effr.get("date") and sofr.get("value") is not None and effr.get("value") is not None:
             ny["SOFR_EFFR_SPREAD_BP"]={"value":round((sofr["value"]-effr["value"])*100,4),"date":sofr["date"],"unit":"bp","source":"same-date SOFR minus EFFR","method":"(SOFR - EFFR) × 100"}
@@ -104,7 +107,7 @@ def refresh(web="web", macro_only=False, extended=False, selected=None):
             asset_output = staging / "asset-result.json"
             asset_started = time.monotonic(); asset_error = None
             try:
-                run_provider_job("Yahoo Finance / market and futures", ["-m", "src.providers.assets_live", "--history-root", str(history), "--output", str(asset_output)], cwd=ROOT, timeout=300)
+                run_provider_job("Market and futures", ["-m", "src.providers.assets_live", "--history-root", str(history), "--output", str(asset_output)], cwd=ROOT, timeout=300)
                 result = read_json(asset_output)
                 asset_items, commodities, market_assets = result["items"], result["commodities"], result["market"]
             except Exception as e:
@@ -115,10 +118,13 @@ def refresh(web="web", macro_only=False, extended=False, selected=None):
                     raise RuntimeError(error_code)
                 asset_items, commodities, market_assets = collect_assets(history, fetch=unavailable)
             items.extend(asset_items)
-            asset_health = history_provider_health("Yahoo Finance / market and futures", asset_items)
-            asset_health["duration_seconds"] = round(time.monotonic()-asset_started, 2)
-            if asset_error: asset_health["error"] = asset_error
-            health.append(asset_health)
+            for source in ("Nasdaq historical quotes","Yahoo Finance"):
+                group=[x for x in asset_items if x.get("source")==source or source=="Yahoo Finance" and str(x.get("source","")).startswith("Derived from Yahoo")]
+                if group:
+                    asset_health = history_provider_health(source, group)
+                    asset_health["duration_seconds"] = round(time.monotonic()-asset_started, 2)
+                    if asset_error: asset_health["error"] = asset_error
+                    health.append(asset_health)
             snap.setdefault("macro_v9",{})["commodities"] = commodities
             snap["macro_v8"]["market"] = market_assets
         else:
@@ -171,7 +177,7 @@ def refresh(web="web", macro_only=False, extended=False, selected=None):
         snap["sources"]["official_history"] = "FRED official/revised series, per-series source links"
         snap["sources"]["reference_rates"] = "Federal Reserve Bank of New York"
         snap["data_health"] = {"providers": health, "series": items, "updated_at": now()}
-        snap["meta"].update(calendar_parser="official_v13",schema_version="14.0", demo=False, last_refresh_attempt=attempted, last_refresh_completed=now(), universe_count=len(snap.get("tickers", [])), status="partial" if any(x.get("status") != "ok" for x in items+health+cal.get("providers",[])) or not stocks_ok else "ok")
+        snap["meta"].update(calendar_parser="official_v13",schema_version="15.0", demo=False, last_refresh_attempt=attempted, last_refresh_completed=now(), universe_count=len(snap.get("tickers", [])), status="partial" if any(x.get("status") != "ok" for x in items+health+cal.get("providers",[])) or not stocks_ok else "ok")
         validate_snapshot(snap)
         # Verify every manifest-linked history before promoting any data.
         for item in items:

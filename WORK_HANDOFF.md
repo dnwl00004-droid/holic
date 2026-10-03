@@ -1,4 +1,4 @@
-# RS Radar — resumed 2026-10-02
+# RS Radar — resumed 2026-10-03
 
 Repository: https://github.com/dnwl00004-droid/holic
 Live dashboard: https://dnwl00004-droid.github.io/holic/
@@ -10,6 +10,19 @@ was opened and verified after repository-owner authentication.
 
 - Restored the verified v14 archive, including 58 FRED and eight EIA histories,
   335,000 saved observations and 444 official calendar events.
+- v15 adds validated Nasdaq daily OHLCV for equities and SPY, plus 14
+  commodity-linked ETFs. The local build contains 496 of 503 constituents
+  (98.61% coverage), aligned to the SPY observation date. Seven invalid or
+  insufficient histories are excluded with reasons in Data Health.
+- Nasdaq validation checks symbol identity, pagination, session dates, positive
+  consistent OHLC and unexplained large discontinuities. Missing volumes remain
+  missing. Price returns exclude cash dividends; ordinary dividend adjustments
+  are not represented. Cached source timestamps survive failed collections.
+- Actual stock data exposed VCP pivot selection, RSI and NumPy JSON errors.
+  VCP now uses separate high/low pivot arrays, RSI uses Wilder smoothing, and
+  trend-template results serialize as Python booleans.
+- Analyst estimate collection is explicit opt-in; disconnected research inputs
+  remain unavailable. Replay and signal backtests use Nasdaq quote histories.
 - Split validation/publishing from the long data refresh. The weekday refresh
   runs at 22:30 UTC (07:30 KST the next day) and publishes only after validation.
 - Calendar countdowns use the current Eastern date and release time. Today and
@@ -36,19 +49,24 @@ was opened and verified after repository-owner authentication.
 
 ## Validation
 
-- 41 Python tests pass, including child timeout, failed-child restoration,
+- 50 Python tests pass, including child timeout, failed-child restoration,
   full derived histories, safe error reporting and separate archive timestamps.
 - JavaScript syntax and DOM contracts pass for 49 routes in four scenarios.
-- The data validator confirms 66 available histories and 335,000 observations,
+- The data validator confirms 83 available histories and over 356,000 observations,
   with no duplicate HTML IDs or invalid history references.
 - Real Chromium Actions checks cover 49 routes on desktop and mobile, history
-  pagination, oldest/newest observations and complete CSV export. Screenshot
+  pagination, oldest/newest observations and complete CSV export. The v15 checks
+  also exercise real-stock search, quote provenance, research charts, stock CSV
+  export, commodity fund units and linked histories. Screenshot
   evidence is retained as the browser-evidence workflow artifact.
 
 ## Data limitations
 
-The dashboard is live with partial data. Yahoo equity/futures requests have not
-returned verified prices; stocks and all dependent rankings remain N/A.
+The dashboard has partial data. Nasdaq equity and ETF prices are available.
+Yahoo-only futures, index, dollar and crypto fields remain unavailable when that
+provider fails. Commodity-linked ETF prices are USD per fund share, separate
+from futures and spot prices. Current observations and actual successful fetch
+timestamps appear next to each source.
 Official histories are retained when FRED or EIA requests fail; availability
 alone does not mean the latest collection succeeded. Check Data Health and
 individual observation dates.

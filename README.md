@@ -1,4 +1,4 @@
-# RS Radar v14
+# RS Radar v15
 
 Repository: [dnwl00004-droid/holic](https://github.com/dnwl00004-droid/holic).
 For current deployment setup and remaining data limitations, see
@@ -21,11 +21,20 @@ A clean-room, static-first U.S. equity relative-strength / setup screener.
 
 ## Data provenance
 
-- Price/volume prototype provider: Yahoo Finance via `yfinance`
+- Stocks, benchmark and commodity-linked ETFs: validated Nasdaq public daily quotes
+- Futures and other Yahoo-only instruments: Yahoo Finance via `yfinance`, with explicit N/A when unavailable
 - Fundamentals: SEC EDGAR CompanyFacts API
 - Benchmark: SPY via the same price provider
 - Universe: S&P 500 list from Wikipedia for prototype use
 - Derived fields: calculated locally; see `sources` and `methodology` in JSON
+
+Daily quote history uses provider-reported split adjustments and excludes cash
+dividends. Rankings align every stock to the SPY observation date. Malformed
+OHLCV, wrong symbols, incomplete pages and large unexplained price discontinuities
+are excluded; validated caches remain available during provider outages.
+Commodity-linked ETF prices are USD per fund share and remain separate from
+spot prices and futures contracts. Analyst estimates require `--with-estimates`;
+the default refresh does not request an unavailable estimate feed.
 
 For a public/commercial product, review exchange/vendor licensing and replace the
 prototype quote provider if redistribution rights are required.

@@ -42,7 +42,16 @@ FRED_SERIES = {**BASE_SERIES, **EXTRA_FRED_SERIES}
 
 def _fred_full_rows(series:str, session=None) -> list[dict]:
     s=session or requests.Session()
-    r=s.get(FRED_CSV.format(series=series), headers=HEADERS, timeout=45)
+    # Retry one transport interruption, never an access denial or rate limit.
+    for attempt in range(2):
+        try:
+            r=s.get(FRED_CSV.format(series=series), headers=HEADERS, timeout=(8,30 if attempt==0 else 12))
+            r.raise_for_status()
+            break
+        except (requests.Timeout,requests.ConnectionError):
+            if attempt: raise
+        except requests.HTTPError:
+            if attempt or r.status_code not in (502,503,504): raise
     r.raise_for_status()
     df=pd.read_csv(StringIO(r.text))
     if series not in df.columns: raise ValueError("unexpected_FRED_series")

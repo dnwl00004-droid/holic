@@ -5,12 +5,16 @@ import pandas as pd
 
 def rsi14(close: pd.Series) -> float | None:
     c=close.dropna()
-    if len(c)<20: return None
-    d=c.diff()
-    gain=d.clip(lower=0).ewm(alpha=1/14,adjust=False).mean()
-    loss=(-d.clip(upper=0)).ewm(alpha=1/14,adjust=False).mean()
-    rs=gain/max(float(loss.iloc[-1]),1e-12)
-    return round(float(100-100/(1+rs)),2)
+    if len(c)<15: return None
+    d=c.diff().iloc[1:]
+    gains=d.clip(lower=0).to_numpy(dtype=float)
+    losses=(-d.clip(upper=0)).to_numpy(dtype=float)
+    gain=float(gains[:14].mean());loss=float(losses[:14].mean())
+    for up,down in zip(gains[14:],losses[14:]):
+        gain=(gain*13+up)/14;loss=(loss*13+down)/14
+    if gain==0 and loss==0:return None
+    if loss==0:return 100.0
+    return round(float(100-100/(1+gain/loss)),2)
 
 def obv_series(df: pd.DataFrame) -> pd.Series:
     d=df.dropna(subset=["close","volume"]).copy()
