@@ -21,6 +21,12 @@ def download_daily(tickers, period="3y"):
         try:
             result.update(yahoo_daily(other, period))
         except Exception as error:
+            # Keep a safe, actionable module identifier in Data Health. The
+            # exception message may include provider URLs or account data.
+            missing = getattr(error, "name", None) if isinstance(error, ModuleNotFoundError) else None
+            code = "rate_limited_429" if type(error).__name__ == "YFRateLimitError" else type(error).__name__
+            if missing and missing.replace("_", "").replace(".", "").isalnum():
+                code += ":" + missing[:80]
             for ticker in other:
-                result.errors[ticker] = "rate_limited_429" if type(error).__name__ == "YFRateLimitError" else type(error).__name__
+                result.errors[ticker] = code
     return result

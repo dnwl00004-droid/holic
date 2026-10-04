@@ -87,7 +87,16 @@ function renderRoute(id){
  if(id==='yieldcurve')renderCurve();
  if(id==='intermarketpro')renderIntermarket();
  if(id==='rsleaders'||id==='rankingspro'){let rows=[...DATA.tickers].sort((a,b)=>(id==='rsleaders'?b.rs?.score:b.scores?.strength)-(id==='rsleaders'?a.rs?.score:a.scores?.strength));$('#'+id).innerHTML=`<h2>${id==='rsleaders'?'Relative Strength Leaders':'Stock Rankings'}</h2>`+stockTable(rows,['ticker','company','rs','short','strength','setup','entry']);bindStockRows($('#'+id))}
- if(id==='sectorpro')$('#'+id).innerHTML='<h2>Sector Rotation</h2>'+objectTable(DATA.groups);
+ if(id==='sectorpro'){
+  const symbols=['XLB','XLC','XLE','XLF','XLI','XLK','XLP','XLRE','XLU','XLV','XLY','QQQ','IWM'];
+  const market=DATA.macro_v8?.market||{};
+  $('#'+id).innerHTML='<h2>Sector Rotation</h2><p class="method-note">Sector and broad-market ETF prices are USD per share. Fund returns exclude cash distributions and are separate from the constituent group RS rankings below.</p>'+
+   '<div class="focus-grid">'+symbols.map(symbol=>{
+    const quote=market[symbol]||{},meta=HISTORY_INDEX?.items?.find(x=>x.id===symbol);
+    return `<div class="focus-metric ${quote.value!=null?'history-clickable':''}" data-sector-history="${symbol}"><div class="fm-top"><b>${symbol}</b><span class="fm-source">${esc(meta?.source||'Nasdaq historical quotes')}</span></div><div class="fm-label">${esc(quote.label||meta?.label||symbol)}</div><div class="fm-value">${display(quote.value)} <small>$/share</small></div><div class="fm-meta">As of ${esc(quote.date||'N/A')} · ${esc(quote.status||'unavailable')}</div><div class="fm-meta">1M ${signedPct(quote.return_1m_pct)}</div></div>`;
+   }).join('')+'</div><div class="section-title"><span>CONSTITUENT GROUP RANKINGS</span><span>separate RS calculation</span></div>'+objectTable(DATA.groups);
+  $('#'+id).querySelectorAll('[data-sector-history]').forEach(card=>{if(market[card.dataset.sectorHistory]?.value!=null)card.onclick=()=>openHistorySeries(card.dataset.sectorHistory)});
+ }
  if(id==='dashboard')$('#'+id).innerHTML='<h2>Market Dashboard</h2>'+metricCards([['Stock universe',DATA.tickers.length],['Macro regime',DATA.macro_v8?.regime?.regime],['Macro risk',DATA.macro_v8?.regime?.macro_risk_score],['Market quality',DATA.market?.quality?.score]])+`<div class="dashboard-links">${[['markethealth','Market breadth'],['macrofull','Macro overview'],['commodities','Commodities'],['screenerpro','Stock screener']].map(([i,t])=>`<button data-route="${i}">${t}</button>`).join('')}</div>`;
  const researchRoutes={earningspro:'Earnings',estimatespro:'Estimates',valuationpro:'Valuation',ownershippro:'Ownership',insiderpro:'Insider',shortpro:'Short',catalystspro:'Catalysts'};
  if(researchRoutes[id]){const tab=researchRoutes[id];const x=DATA.tickers.find(z=>z.ticker===($('#unifiedTicker')?.value||selected))||DATA.tickers[0];$('#'+id).innerHTML=`<div class="panel-head"><h2>${tab}</h2><button class="recipe" data-route="stockresearch">Select company in Research</button></div>`+(x?`<h3>${esc(x.ticker)} · ${esc(x.company)}</h3>${researchContent(x,tab)}`:'<div class="empty-state">N/A — stock data unavailable.</div>')}
