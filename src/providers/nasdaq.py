@@ -18,7 +18,9 @@ SOURCE = "Nasdaq historical quotes"
 METHOD = "Provider-reported split-adjusted daily OHLCV; price returns exclude cash dividends"
 API = "https://api.nasdaq.com/api/quote/{symbol}/historical"
 CACHE = Path(__file__).resolve().parents[2] / "data/cache/nasdaq"
-ETF_SYMBOLS = {"SPY", "TLT", "HYG", "GLD", "SLV", "CPER", "USO", "BNO", "UNG", "DBA", "CORN", "WEAT", "SOYB", "PPLT", "PALL", "COPX", "URA"}
+ETF_SYMBOLS = {"SPY", "TLT", "HYG", "QQQ", "IWM",
+               "XLB", "XLC", "XLE", "XLF", "XLI", "XLK", "XLP", "XLRE", "XLU", "XLV", "XLY",
+               "GLD", "SLV", "CPER", "USO", "BNO", "UNG", "DBA", "CORN", "WEAT", "SOYB", "PPLT", "PALL", "COPX", "URA"}
 _circuit = Event()
 _gate = Lock()
 _next_request = 0.0

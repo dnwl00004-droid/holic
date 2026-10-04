@@ -69,6 +69,21 @@ def test_rate_limit_stops_provider_and_retains_other_adapters(monkeypatch):
     assert "SPY" in result and "CL=F" not in result
     assert result.errors["CL=F"]=="rate_limited_429"
 
+def test_new_sector_and_broad_market_funds_use_nasdaq_etf_endpoint(tmp_path):
+    from src.providers.history_v10 import MARKET_TICKERS
+    symbols={ticker for ticker,meta in MARKET_TICKERS.items() if meta["category"]=="Sector ETF"}
+    assert len(symbols)==11 and symbols|{"QQQ","IWM"} <= nasdaq.ETF_SYMBOLS
+    class Session:
+        def get(self,url,**kwargs):
+            assert kwargs["params"]["assetclass"]=="etf"
+            response=requests.Response()
+            response.status_code=200
+            response._content=__import__("json").dumps(quotes("XLK")).encode()
+            return response
+    frame=nasdaq.fetch_daily("XLK",cache_dir=tmp_path,session=Session())
+    assert frame["close"].iloc[-1]==102
+    assert "/etf/xlk/" in frame.attrs["source_url"]
+
 
 def test_fred_timeout_retry_does_not_retry_rate_limit():
     from src.providers.history_v10 import _fred_full_rows
