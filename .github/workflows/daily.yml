@@ -66,6 +66,21 @@ jobs:
           if [ -f data/output/signal_log.json ]; then git add data/output/signal_log.json; fi
           if ! git diff --cached --quiet; then
             git commit -m 'data: validated refresh with provider health'
-            git pull --rebase origin main
-            git push
+            git fetch origin main
+            # A source edit during collection makes this snapshot stale. The
+            # newer source push starts its own refresh; never rebase generated
+            # JSON over another independently generated snapshot.
+            if [ "$(git rev-parse HEAD^)" != "$(git rev-parse origin/main)" ]; then
+              echo '::notice::Main advanced during collection; discard stale snapshot.'
+              exit 0
+            fi
+            if ! git push origin HEAD:main; then
+              git fetch origin main
+              if [ "$(git rev-parse HEAD^)" != "$(git rev-parse origin/main)" ]; then
+                echo '::notice::Main advanced before push; discard stale snapshot.'
+              else
+                echo '::error::Snapshot push failed without an upstream change.'
+                exit 1
+              fi
+            fi
           fi
