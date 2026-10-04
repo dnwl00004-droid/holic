@@ -103,3 +103,28 @@ def test_fred_timeout_retry_does_not_retry_rate_limit():
     session=Limited()
     with pytest.raises(requests.HTTPError):_fred_full_rows("DGS10",session)
     assert session.calls==1
+
+
+def test_inconsistent_nasdaq_etf_uses_independently_verified_close(monkeypatch):
+    dates=pd.date_range(end=pd.Timestamp.now(tz="UTC").tz_localize(None),periods=300,freq="B")
+    frame=pd.DataFrame({"open":[100+i*.01 for i in range(300)],
+                        "high":[101+i*.01 for i in range(300)],
+                        "low":[99+i*.01 for i in range(300)],
+                        "close":[100.5+i*.01 for i in range(300)]},index=dates)
+    frame.attrs.update(source="Yahoo Finance",method="Yahoo daily OHLCV; close excludes cash dividends")
+    def nasdaq_failure(*args,**kwargs):
+        result=nasdaq.QuoteFrames();result.errors["IWM"]="inconsistent_ohlc";return result
+    def yahoo_fallback(tickers,period,auto_adjust=True):
+        assert tickers==["IWM"] and auto_adjust is False
+        return {"IWM":frame}
+    monkeypatch.setattr(prices,"nasdaq_daily",nasdaq_failure)
+    monkeypatch.setattr(prices,"yahoo_daily",yahoo_fallback)
+    result=prices.download_daily(["IWM"])
+    assert result["IWM"].attrs["source"]=="Yahoo Finance"
+    assert "excludes cash dividends" in result["IWM"].attrs["method"]
+    assert "IWM" not in result.errors
+
+    bad=frame.copy();bad.loc[dates[-1],"high"]=90
+    monkeypatch.setattr(prices,"yahoo_daily",lambda *a,**k:{"IWM":bad})
+    result=prices.download_daily(["IWM"])
+    assert "IWM" not in result and result.errors["IWM"]=="inconsistent_ohlc"

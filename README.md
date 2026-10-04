@@ -21,7 +21,7 @@ A clean-room, static-first U.S. equity relative-strength / setup screener.
 
 ## Data provenance
 
-- Stocks, benchmark, sector ETFs and commodity-linked ETFs: validated Nasdaq public daily quotes
+- Stocks, benchmark, sector ETFs and commodity-linked ETFs: validated Nasdaq public daily quotes; sector/broad-market ETFs with contradictory Nasdaq bars may use independently validated Yahoo daily closes, labeled with their actual source
 - Futures and other Yahoo-only instruments: Yahoo Finance via `yfinance`, with explicit N/A when unavailable
 - Fundamentals: SEC EDGAR CompanyFacts API
 - Benchmark: SPY via the same price provider
@@ -40,6 +40,9 @@ The market history collector also requests QQQ, IWM and the eleven U.S. sector
 ETFs (XLB, XLC, XLE, XLF, XLI, XLK, XLP, XLRE, XLU, XLV, XLY). The Sector
 screen labels these as fund-share prices with source dates; missing quotes
 remain unavailable. They are separate from the constituent group RS rankings.
+The Yahoo ETF fallback retains cash-dividend exclusion, requires at least 252
+coherent daily bars and a recent observation, and never replaces the SPY
+benchmark or stock rankings.
 
 The header has three saved design presets (Terminal, Editorial and High
 contrast) and Korean/English UI selection. Preferences stay in this browser.
