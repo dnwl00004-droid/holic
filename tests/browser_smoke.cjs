@@ -30,6 +30,19 @@ const server = http.createServer((req, res) => {
       page.on('pageerror', e => errors.push(e.message));
       await page.goto(url, {waitUntil:'networkidle'});
       await page.waitForFunction(() => document.querySelectorAll('.sidebar-nav button').length >= 45);
+      assert.equal(await page.locator('html').getAttribute('lang'),'ko',`${name}: Korean default`);
+      assert.equal(await page.locator('[data-tab="datahealth"]').textContent(),'데이터 상태',`${name}: Korean navigation`);
+      await page.locator('#languageSelect').selectOption('en');
+      assert.equal(await page.locator('[data-tab="datahealth"]').textContent(),'Data Health',`${name}: English switch`);
+      await page.locator('#designSelect').selectOption('paper');
+      await page.screenshot({path:path.join(out,`${name}-editorial-en.png`),fullPage:true});
+      await page.reload({waitUntil:'networkidle'});
+      assert.equal(await page.locator('html').getAttribute('lang'),'en',`${name}: language persists`);
+      assert.equal(await page.locator('body').getAttribute('data-design'),'paper',`${name}: design persists`);
+      await page.locator('#designSelect').selectOption('contrast');
+      await page.screenshot({path:path.join(out,`${name}-contrast-en.png`),fullPage:true});
+      await page.locator('#designSelect').selectOption('terminal');
+      await page.locator('#languageSelect').selectOption('ko');
       const navigate = async route => {
         if (name === 'mobile') await page.locator('#menuButton').click();
         await page.locator(`.sidebar-nav button[data-tab="${route}"]`).click();

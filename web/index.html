@@ -1,11 +1,11 @@
 <!doctype html><html lang="ko"><head>
 <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
-<title>RS Radar · Market Terminal</title><meta name="description" content="US equity, macro and commodity research terminal with verified source dates and data health."/><link rel="icon" href="favicon.svg" type="image/svg+xml"/><link rel="stylesheet" href="styles.css"/><link rel="stylesheet" href="terminal.css"/></head><body>
+<title>RS Radar · Market Terminal</title><meta name="description" content="US equity, macro and commodity research terminal with verified source dates and data health."/><link rel="icon" href="favicon.svg" type="image/svg+xml"/><link rel="stylesheet" href="styles.css"/><link rel="stylesheet" href="terminal.css"/><link rel="stylesheet" href="preferences.css"/></head><body>
 <div class="shell">
 <header class="topbar">
  <button id="menuButton" class="icon-btn menu-button" aria-label="Open navigation">☰</button><div class="brand"><div class="eyebrow">MARKET DISCOVERY TERMINAL</div><h1>RS Radar <span class="v2">v15</span></h1></div>
  <div class="global-command"><span class="cmd-icon">⌕</span><input id="globalSearch" placeholder="Ticker / company / macro series"/><span class="cmd-hint">ENTER</span></div>
- <div class="top-status"><div id="dataFreshness" class="data-freshness"></div><div class="header-actions"><button id="densityBtn" class="icon-btn" title="Density">≡</button><button id="refreshBtn" class="icon-btn">↻</button><button id="themeBtn" class="icon-btn">◐</button></div></div>
+ <div class="top-status"><div id="dataFreshness" class="data-freshness"></div><div class="header-actions"><label class="preference-control"><span data-pref-label="design">Design</span><select id="designSelect" aria-label="Design"><option value="terminal">Terminal</option><option value="paper">Editorial</option><option value="contrast">High contrast</option></select></label><label class="preference-control"><span data-pref-label="language">Language</span><select id="languageSelect" aria-label="Language"><option value="ko">한국어</option><option value="en">English</option></select></label><button id="densityBtn" class="icon-btn" title="Density" aria-label="Toggle density">≡</button><button id="refreshBtn" class="icon-btn" title="Refresh" aria-label="Refresh">↻</button><button id="themeBtn" class="icon-btn" title="Next design" aria-label="Next design">◐</button></div></div>
 </header>
 <div class="app-body">
 <nav class="tabs sidebar-nav">
@@ -312,4 +312,4 @@
 
 <section id="compare" class="view"><div class="panel"><div class="panel-head"><div><div class="eyebrow">SIDE BY SIDE</div><h2>Compare Stocks</h2></div></div>
 <div id="compareSelectors" class="compare-selectors"></div><div id="compareTable" class="compare-table-wrap"></div></div></section>
-</main></div></div></div><script src="app.js"></script><script src="terminal.js"></script></body></html>
+</main></div></div></div><script src="app.js"></script><script src="terminal.js"></script><script src="preferences.js"></script></body></html>

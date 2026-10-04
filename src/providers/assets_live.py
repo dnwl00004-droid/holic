@@ -78,7 +78,7 @@ def collect_assets(root, fetch=download_daily):
             data.update(status="stale",last_success=frame.attrs.get("fetched_at"),error=frame.attrs.get("error"))
             atomic_json(path,data)
         history = data["history"]
-        item = {"id":sid,**meta,"source":data.get("source","Nasdaq historical quotes" if sid in COMMODITY_ETFS or sid in ("SPY","TLT","HYG") else "Yahoo Finance"), "path":f"history/{folder}/{name}" if history else None,
+        item = {"id":sid,**meta,"source":data.get("source","Nasdaq historical quotes" if sid in COMMODITY_ETFS or sid in ("SPY","TLT","HYG") or meta.get("category")=="Sector ETF" or sid in ("QQQ","IWM") else "Yahoo Finance"), "path":f"history/{folder}/{name}" if history else None,
                 "count":len(history),"start":history[0]["date"] if history else None,"end":history[-1]["date"] if history else None,
                 "status":data["status"],"last_attempt":data.get("last_attempt"),"last_success":data.get("last_success"),"error":data.get("error"),
                 "method":data.get("method","daily adjusted close; trading-session lookbacks"),"refresh_frequency":"daily after US close"}

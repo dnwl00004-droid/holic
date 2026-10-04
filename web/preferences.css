@@ -1,0 +1,35 @@
+/* Visual presets keep the same data, navigation and accessibility semantics. */
+.preference-control{display:grid;gap:2px;align-items:center;color:var(--muted);font-size:10px;line-height:1.1}
+.preference-control select{width:112px;height:36px;padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--text);font-size:12px}
+.preference-control:focus-within span{color:var(--accent)}
+.header-actions{align-items:center}
+body[data-design="paper"]{
+ --bg:#f5f2ec;--panel:#fffdf9;--panel2:#eee9df;--line:#d9d0c2;
+ --text:#24313b;--muted:#5c6b75;--accent:#145b7c;--blue:#286c9b;
+ --green:#13794e;--yellow:#966c00;--red:#aa3f45;--shadow:0 9px 24px #26334414;
+ background:#f5f2ec;color:var(--text)
+}
+body[data-design="paper"] .topbar{background:#fffdf9f5}
+body[data-design="paper"] .sidebar-nav.tabs{background:#eee9df}
+body[data-design="paper"] .sidebar-nav button.active{background:#dbe7e9}
+body[data-design="paper"] .panel,body[data-design="paper"] .metric,body[data-design="paper"] .focus-metric,body[data-design="paper"] .today-hero-card{background:var(--panel);border-radius:12px;box-shadow:var(--shadow)}
+body[data-design="paper"] .row,body[data-design="paper"] .stat,body[data-design="paper"] .why,body[data-design="paper"] .insight,body[data-design="paper"] .setup-card,body[data-design="paper"] .breadth-kpi,body[data-design="paper"] .macro-head,body[data-design="paper"] .sb-card{background:#f9f6f0}
+body[data-design="paper"] .global-command,body[data-design="paper"] .toolbar.compact,body[data-design="paper"] .toolbar input,body[data-design="paper"] .toolbar select,body[data-design="paper"] .formula-box,body[data-design="paper"] .nl-query,body[data-design="paper"] .history-label select,body[data-design="paper"] .intel-select{background:#fffdf9}
+body[data-design="paper"] .recipe,body[data-design="paper"] .icon-btn,body[data-design="paper"] .segmented button,body[data-design="paper"] .screen-actions>button{background:#eee9df;color:var(--text)}
+body[data-design="paper"] .bar,body[data-design="paper"] .risk-track,body[data-design="paper"] .stress-track{background:#e5ded3}
+body[data-design="paper"] .eyebrow,body[data-design="paper"] .nav-label,body[data-design="paper"] h1{letter-spacing:.02em}
+body[data-design="contrast"]{
+ --bg:#000;--panel:#0c0c0c;--panel2:#181818;--line:#777;
+ --text:#fff;--muted:#e0e0e0;--accent:#ffdc44;--blue:#70c7ff;
+ --green:#61f2a1;--yellow:#ffdc44;--red:#ff8d8d;
+ background:#000;color:#fff
+}
+body[data-design="contrast"] .topbar,body[data-design="contrast"] .sidebar-nav.tabs{background:#000}
+body[data-design="contrast"] .panel,body[data-design="contrast"] .metric,body[data-design="contrast"] .focus-metric,body[data-design="contrast"] .today-hero-card{background:#0c0c0c;border:1px solid #999}
+body[data-design="contrast"] .row,body[data-design="contrast"] .stat,body[data-design="contrast"] .why,body[data-design="contrast"] .insight,body[data-design="contrast"] .setup-card,body[data-design="contrast"] .breadth-kpi,body[data-design="contrast"] .macro-head,body[data-design="contrast"] .sb-card,body[data-design="contrast"] .global-command,body[data-design="contrast"] .toolbar.compact,body[data-design="contrast"] .toolbar input,body[data-design="contrast"] .toolbar select,body[data-design="contrast"] .formula-box,body[data-design="contrast"] .nl-query{background:#111}
+body[data-design="contrast"] .recipe,body[data-design="contrast"] .icon-btn,body[data-design="contrast"] .segmented button,body[data-design="contrast"] .screen-actions>button{background:#181818;border-color:#aaa;color:#fff}
+body[data-design="contrast"] a{color:#ffdc44}
+body[data-design="contrast"] .sidebar-nav button.active{background:#24200c}
+@media(max-width:1100px){.preference-control span{display:none}.preference-control select{width:96px}.topbar{grid-template-columns:180px minmax(190px,1fr) auto}}
+@media(max-width:800px){.topbar{grid-template-columns:40px 1fr auto}.preference-control select{width:76px;height:34px;padding:4px;font-size:11px}.header-actions #themeBtn,.header-actions #densityBtn{display:none}}
+@media(max-width:420px){.preference-control select{width:70px}.header-actions{gap:3px}.brand h1{font-size:18px}}

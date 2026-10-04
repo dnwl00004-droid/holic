@@ -62,6 +62,20 @@ async function run(fixture=false,failFetch=false,demoResponse=false){
   assert.equal(w.document.querySelector('#historyRows').children.length,0,'failed history must not retain previous table');
   assert.equal(w.document.querySelector('#historyLatest').textContent,'N/A','failed history must not show prior value');w.fetch=fetch;
  }
+ const preferences=w.document.createElement('script');preferences.textContent=fs.readFileSync(path.join(root,'preferences.js'),'utf8');w.document.body.append(preferences);
+ assert.equal(w.document.documentElement.lang,'ko','Korean should be the default language');
+ assert(w.document.querySelector('[data-tab="datahealth"]').textContent.includes('데이터 상태'),'navigation should be localized');
+ w.document.querySelector('#languageSelect').value='en';w.document.querySelector('#languageSelect').dispatchEvent(new w.Event('change'));
+ assert.equal(w.document.documentElement.lang,'en','English language selection should persist');
+ assert.equal(w.document.querySelector('[data-tab="datahealth"]').textContent,'Data Health','English should restore original labels');
+ w.document.querySelector('#languageSelect').value='ko';w.document.querySelector('#languageSelect').dispatchEvent(new w.Event('change'));
+ assert.equal(w.document.querySelector('[data-tab="datahealth"]').textContent,'데이터 상태','switching back should restore Korean labels');
+ const dynamic=w.document.createElement('p');dynamic.textContent='Stock Screener';w.document.body.append(dynamic);
+ await new Promise(r=>setTimeout(r,0));
+ assert.equal(dynamic.textContent,'종목 검색','newly rendered content should be localized');
+ w.document.querySelector('#designSelect').value='paper';w.document.querySelector('#designSelect').dispatchEvent(new w.Event('change'));
+ assert.equal(w.document.body.dataset.design,'paper','design preset should apply');
+ assert.equal(w.localStorage.getItem('rsradar_design'),'paper','design selection should persist');
  await new Promise(r=>setTimeout(r,80));assert.deepStrictEqual(errors,[],`runtime errors (${fixture?'fixture':'live'})`);const routeCount=w.document.querySelectorAll('.sidebar-nav button').length;dom.window.close();
  return {scenario:demoResponse?'demo rejected':failFetch?'503 fallback':fixture?'fixture interactions':'real snapshot',routes:routeCount,status:'passed'};
 }
