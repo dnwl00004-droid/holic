@@ -1,6 +1,6 @@
 pandas>=2.2
 numpy>=1.26
-yfinance>=0.2.54
+yfinance[repair]>=0.2.54,<2
 scipy>=1.13
 requests>=2.32
 lxml>=5.2
